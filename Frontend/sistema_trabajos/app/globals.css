@@ -901,3 +901,16 @@ h3 {
     max-width: 720px;
   }
 }
+
+.apply-hover-card .apply-btn {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    filter 0.25s ease;
+}
+
+.apply-hover-card:hover .apply-btn:not(:disabled) {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+  filter: brightness(1.08);
+}
