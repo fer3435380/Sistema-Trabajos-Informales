@@ -19,6 +19,7 @@ def build_payload(event_type, application):
         "job_id": application.job_id,
         "job_title": application.job.title,
         "applicant_id": application.applicant_id,
+        "applicant_name": application.applicant.name,
         "owner_id": application.job.creator_id,
         "status": application.status,
     }
