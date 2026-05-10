@@ -2,6 +2,7 @@ package com.microjobs.threads;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -10,12 +11,13 @@ import org.slf4j.LoggerFactory;
 
 import io.github.cdimascio.dotenv.Dotenv;
 
-public class ThreadPoolManager 
-{
+public class ThreadPoolManager {
+
     private static final Logger logger = LoggerFactory.getLogger(ThreadPoolManager.class);
+
     private final ExecutorService executorService;
     private final AtomicInteger tareasActivas = new AtomicInteger(0);
-    private static final String POOL_NAME = "microjobs-worker";   
+    private final Semaphore semaphore;
 
     public ThreadPoolManager() {
         Dotenv dotenv = Dotenv.configure()
@@ -23,27 +25,49 @@ public class ThreadPoolManager
                 .load();
 
         int poolSize = Integer.parseInt(dotenv.get("THREAD_POOL_SIZE", "10"));
-        this.executorService = Executors.newVirtualThreadPerTaskExecutor();
 
-        logger.info("ThreadPoolManager iniciado con Virtual Threads (Java 21) | " + 
-            "Concurrencia configurada: {} tareas", poolSize);
+        this.executorService = Executors.newVirtualThreadPerTaskExecutor();
+        this.semaphore = new Semaphore(poolSize);
+
+        logger.info(
+                "ThreadPoolManager iniciado con Virtual Threads (Java 21) | concurrencia_maxima={}",
+                poolSize
+        );
     }
 
     public void submit(Runnable tarea) {
-        tareasActivas.incrementAndGet();
-
         executorService.submit(() -> {
-            String threadName = Thread.currentThread().getName();
-            logger.debug("Hilo [{}] iniciando tarea\nTareas activas: {}",
-                    threadName, tareasActivas.get());
+            boolean acquired = false;
             try {
+                semaphore.acquire();
+                acquired = true;
+
+                int activeTasks = tareasActivas.incrementAndGet();
+                String threadName = Thread.currentThread().getName();
+
+                logger.info(
+                        "Hilo [{}] inicio tarea | tareas_activas={}",
+                        threadName,
+                        activeTasks
+                );
+
                 tarea.run();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.error("Hilo interrumpido esperando cupo en el pool: {}", e.getMessage(), e);
             } catch (Exception e) {
-                logger.error("Error en hilo [{}]: {}", threadName, e.getMessage(), e);
+                logger.error("Error ejecutando tarea: {}", e.getMessage(), e);
             } finally {
-                int restantes = tareasActivas.decrementAndGet();
-                logger.debug("Hilo [{}] terminó tarea\nTareas activas: {}",
-                        threadName, restantes);
+                if (acquired) {
+                    int remainingTasks = tareasActivas.decrementAndGet();
+                    semaphore.release();
+
+                    logger.info(
+                            "Hilo [{}] finalizo tarea | tareas_activas={}",
+                            Thread.currentThread().getName(),
+                            remainingTasks
+                    );
+                }
             }
         });
     }
@@ -56,23 +80,23 @@ public class ThreadPoolManager
         return !executorService.isShutdown();
     }
 
-     public void shutdown() {
-        logger.info("Apagando ThreadPoolManager...\nTareas activas: {}", tareasActivas.get());
+    public void shutdown() {
+        logger.info("Deteniendo ThreadPoolManager | tareas_activas={}", tareasActivas.get());
         executorService.shutdown();
 
-         try {
+        try {
             if (!executorService.awaitTermination(30, TimeUnit.SECONDS)) {
-                logger.warn("Algunas tareas no terminaron en 30s, forzando apagado...");
+                logger.warn("Algunas tareas no terminaron en 30s. Se forzara el apagado.");
                 executorService.shutdownNow();
 
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    logger.error("El pool no pudo apagarse completamente.");
+                    logger.error("El pool no pudo detenerse por completo.");
                 }
             } else {
-                logger.info("ThreadPoolManager apagado correctamente.");
+                logger.info("ThreadPoolManager detenido correctamente.");
             }
         } catch (InterruptedException e) {
-            logger.error("Apagado interrumpido: {}", e.getMessage());
+            logger.error("Apagado interrumpido: {}", e.getMessage(), e);
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
         }

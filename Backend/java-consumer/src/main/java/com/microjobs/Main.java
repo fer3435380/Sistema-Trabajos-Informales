@@ -12,18 +12,17 @@ import org.slf4j.LoggerFactory;
 public class Main {
 
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
+    private static final String BANNER_LINE = "========================================";
 
     public static void main(String[] args) {
-        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        logger.info("  🚀 Iniciando Java Consumer - Microjobs ");
-        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        logBanner("Iniciando Java Consumer - Microjobs");
 
-        RabbitMQConfig    rabbitMQConfig    = new RabbitMQConfig();
+        RabbitMQConfig rabbitMQConfig = new RabbitMQConfig();
         ThreadPoolManager threadPoolManager = new ThreadPoolManager();
         NotificationService notificationService = new NotificationService();
-        PythonApiService    pythonApiService    = new PythonApiService();
-        EventProcessor      eventProcessor      = new EventProcessor(notificationService, pythonApiService);
-        RabbitConsumer      rabbitConsumer      = new RabbitConsumer(rabbitMQConfig, threadPoolManager, eventProcessor);
+        PythonApiService pythonApiService = new PythonApiService();
+        EventProcessor eventProcessor = new EventProcessor(notificationService, pythonApiService);
+        RabbitConsumer rabbitConsumer = new RabbitConsumer(rabbitMQConfig, threadPoolManager, eventProcessor);
 
         registrarShutdownHook(rabbitMQConfig, threadPoolManager, rabbitConsumer);
 
@@ -31,22 +30,28 @@ public class Main {
             rabbitMQConfig.connect();
             rabbitConsumer.iniciar();
         } catch (Exception e) {
-            logger.error("❌ Error fatal iniciando el consumer: {}", e.getMessage(), e);
+            logger.error("Error fatal al iniciar el consumer: {}", e.getMessage(), e);
             System.exit(1);
         }
     }
 
-    private static void registrarShutdownHook(RabbitMQConfig rabbitMQConfig,
-                                               ThreadPoolManager threadPoolManager,
-                                               RabbitConsumer rabbitConsumer) {
+    private static void registrarShutdownHook(
+            RabbitMQConfig rabbitMQConfig,
+            ThreadPoolManager threadPoolManager,
+            RabbitConsumer rabbitConsumer
+    ) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            logger.info("  ⏳ Apagando Java Consumer - Microjobs  ");
-            logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            logBanner("Deteniendo Java Consumer - Microjobs");
             rabbitConsumer.cerrar();
             threadPoolManager.shutdown();
             rabbitMQConfig.close();
-            logger.info("✅ Sistema apagado correctamente.");
+            logger.info("Sistema detenido correctamente.");
         }));
+    }
+
+    private static void logBanner(String title) {
+        logger.info(BANNER_LINE);
+        logger.info("  {}", title);
+        logger.info(BANNER_LINE);
     }
 }

@@ -27,14 +27,16 @@ def build_payload(event_type, application):
 
 @transaction.atomic
 def create_application(user, job, cover_letter=""):
-    if job.creator_id == user.id:
+    locked_job = Job.objects.select_for_update().get(pk=job.pk)
+
+    if locked_job.creator_id == user.id:
         raise exceptions.ValidationError("No puedes postular a tu propio trabajo.")
-    if job.status != Job.Status.OPEN:
+    if locked_job.status != Job.Status.OPEN:
         raise exceptions.ValidationError("El trabajo no está disponible.")
-    if Application.objects.filter(job=job, applicant=user).exists():
+    if Application.objects.filter(job=locked_job, applicant=user).exists():
         raise exceptions.ValidationError("Ya postulaste a este trabajo.")
 
-    application = Application.objects.create(job=job, applicant=user, cover_letter=cover_letter)
+    application = Application.objects.create(job=locked_job, applicant=user, cover_letter=cover_letter)
     event_type = "postulacion_creada"
     OutboxEvent.objects.create(event_type=event_type, payload=build_payload(event_type, application))
     return application
@@ -42,19 +44,39 @@ def create_application(user, job, cover_letter=""):
 
 @transaction.atomic
 def change_application_status(user, application, new_status):
-    if application.job.creator_id != user.id and user.role != "admin":
+    application = (
+        Application.objects.select_for_update()
+        .select_related("job", "applicant", "job__creator")
+        .get(pk=application.pk)
+    )
+    job = Job.objects.select_for_update().get(pk=application.job_id)
+
+    if job.creator_id != user.id and user.role != "admin":
         raise exceptions.PermissionDenied("Solo el dueño del trabajo puede cambiar esta postulación.")
     if application.status != Application.Status.PENDING:
         raise exceptions.ValidationError("La postulación ya fue procesada.")
     if new_status not in EVENT_TYPE_BY_STATUS:
         raise exceptions.ValidationError("Estado inválido.")
+    if new_status == Application.Status.ACCEPTED and job.status != Job.Status.OPEN:
+        raise exceptions.ValidationError("El trabajo ya no está disponible para aceptar más postulaciones.")
 
     application.status = new_status
     application.save(update_fields=["status", "updated_at"])
 
     if new_status == Application.Status.ACCEPTED:
-        application.job.status = Job.Status.ASSIGNED
-        application.job.save(update_fields=["status", "updated_at"])
+        job.status = Job.Status.ASSIGNED
+        job.save(update_fields=["status", "updated_at"])
+
+        other_pending_applications = list(
+            Application.objects.select_related("job", "applicant", "job__creator")
+            .filter(job=job, status=Application.Status.PENDING)
+            .exclude(pk=application.pk)
+        )
+        for pending_application in other_pending_applications:
+            pending_application.status = Application.Status.REJECTED
+            pending_application.save(update_fields=["status", "updated_at"])
+            event_type = EVENT_TYPE_BY_STATUS[Application.Status.REJECTED]
+            OutboxEvent.objects.create(event_type=event_type, payload=build_payload(event_type, pending_application))
 
     event_type = EVENT_TYPE_BY_STATUS[new_status]
     OutboxEvent.objects.create(event_type=event_type, payload=build_payload(event_type, application))

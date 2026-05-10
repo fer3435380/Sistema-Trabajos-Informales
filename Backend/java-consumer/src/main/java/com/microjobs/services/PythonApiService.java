@@ -1,46 +1,55 @@
 package com.microjobs.services;
 
+import com.microjobs.models.Notification;
+import com.microjobs.utils.JsonUtil;
+import io.github.cdimascio.dotenv.Dotenv;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.microjobs.models.Notification;
-import com.microjobs.utils.JsonUtil;
-
-import io.github.cdimascio.dotenv.Dotenv;
 
 public class PythonApiService {
 
     private static final Logger logger = LoggerFactory.getLogger(PythonApiService.class);
 
     private final HttpClient httpClient;
-    private final String     baseUrl;
+    private final String baseUrl;
+    private final String apiKey;
 
     public PythonApiService() {
         Dotenv dotenv = Dotenv.configure()
                 .ignoreIfMissing()
                 .load();
 
-        this.baseUrl = dotenv.get("PYTHON_API_URL", "http://localhost:8000");
-
+        this.baseUrl = dotenv.get("PYTHON_API_URL", "http://localhost:8000").replaceAll("/+$", "");
+        this.apiKey = dotenv.get("INTERNAL_API_KEY", "dev-internal-key");
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
 
-        logger.info("PythonApiService iniciado → {}", baseUrl);
+        logger.info("PythonApiService iniciado | base_url={}", baseUrl);
     }
 
     public void guardarNotificacion(Notification notificacion) throws Exception {
         String json = JsonUtil.toJson(notificacion);
+        if (json == null) {
+            throw new IllegalStateException("No se pudo serializar la notificacion para enviarla a Python.");
+        }
+
+        logger.info(
+                "Enviando notificacion a Python | recipient={} | dedupe_key={} | body={}",
+                notificacion.getRecipient(),
+                notificacion.getDedupeKey(),
+                json
+        );
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/v1/notifications/"))
                 .header("Content-Type", "application/json")
+                .header("X-Internal-Api-Key", apiKey)
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .timeout(Duration.ofSeconds(10))
                 .build();
@@ -48,41 +57,28 @@ public class PythonApiService {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 200 || response.statusCode() == 201) {
-            logger.info("Notificación guardada\nusuario_id={}\nstatus={}",
-                    notificacion.getUserId(), response.statusCode());
-        } else {
-            logger.error("Error guardando notificación\nstatus={}\nbody={}",
-                    response.statusCode(), response.body());
-            throw new Exception("Error al guardar notificación, status: " + response.statusCode());
+            logger.info(
+                    "Notificacion guardada en Python | recipient={} | dedupe_key={} | status={}",
+                    notificacion.getRecipient(),
+                    notificacion.getDedupeKey(),
+                    response.statusCode()
+            );
+            return;
         }
-    }
 
-    public void actualizarEstadoPostulacion(Long applicationId, String status) throws Exception {
-        String json = String.format("{\"status\": \"%s\"}", status);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/api/v1/applications/" + applicationId + "/status/"))
-                .header("Content-Type", "application/json")
-                .PUT(HttpRequest.BodyPublishers.ofString(json))
-                .timeout(Duration.ofSeconds(10))
-                .build();
-
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() == 200) {
-            logger.info("Estado actualizado\napplication_id={}\nstatus={}",
-                    applicationId, status);
-        } else {
-            logger.error("Error actualizando estado\napplication_id={}\nstatus={}\nbody={}",
-                    applicationId, response.statusCode(), response.body());
-            throw new Exception("Error al actualizar estado, status: " + response.statusCode());
-        }
+        logger.error(
+                "Error guardando notificacion en Python | status={} | body={}",
+                response.statusCode(),
+                response.body()
+        );
+        throw new Exception("Error al guardar notificacion, status: " + response.statusCode());
     }
 
     public String obtenerDatosPostulacion(Long applicationId) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/v1/applications/" + applicationId + "/"))
                 .header("Content-Type", "application/json")
+                .header("X-Internal-Api-Key", apiKey)
                 .GET()
                 .timeout(Duration.ofSeconds(10))
                 .build();
@@ -90,12 +86,16 @@ public class PythonApiService {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 200) {
-            logger.info("Datos obtenidos\napplication_id={}", applicationId);
+            logger.info("Datos de postulacion obtenidos | application_id={}", applicationId);
             return response.body();
-        } else {
-            logger.error("Error obteniendo datos\napplication_id={}\nstatus={}",
-                    applicationId, response.statusCode());
-            throw new Exception("Error al obtener datos, status: " + response.statusCode());
         }
+
+        logger.error(
+                "Error obteniendo datos de postulacion | application_id={} | status={} | body={}",
+                applicationId,
+                response.statusCode(),
+                response.body()
+        );
+        throw new Exception("Error al obtener datos, status: " + response.statusCode());
     }
 }

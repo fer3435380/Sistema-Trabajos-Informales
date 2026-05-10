@@ -11,3 +11,7 @@ class HasInternalApiKey(BasePermission):
         from django.conf import settings
 
         return request.headers.get("X-Internal-Api-Key") == settings.INTERNAL_API_KEY
+
+
+def has_internal_api_key(request):
+    return HasInternalApiKey().has_permission(request, None)

@@ -1,11 +1,13 @@
 from django.shortcuts import get_object_or_404
-from rest_framework import generics, status
+from rest_framework import generics, permissions, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from applications.models import Application
 from applications.serializers import ApplicationCreateSerializer, ApplicationSerializer
 from applications.services import change_application_status, create_application
+from core.permissions import has_internal_api_key
 
 
 class ApplicationListCreateView(generics.ListCreateAPIView):
@@ -34,6 +36,27 @@ class ReceivedApplicationsView(generics.ListAPIView):
 
     def get_queryset(self):
         return Application.objects.select_related("job", "applicant").filter(job__creator=self.request.user)
+
+
+class ApplicationDetailView(generics.RetrieveAPIView):
+    serializer_class = ApplicationSerializer
+    queryset = Application.objects.select_related("job", "applicant", "job__creator").all()
+    permission_classes = [permissions.AllowAny]
+
+    def get_object(self):
+        application = super().get_object()
+        user = self.request.user
+
+        if has_internal_api_key(self.request):
+            return application
+
+        if not user or not user.is_authenticated:
+            raise PermissionDenied("No tienes permisos para ver esta postulación.")
+
+        if user.role == "admin" or application.applicant_id == user.id or application.job.creator_id == user.id:
+            return application
+
+        raise PermissionDenied("No tienes permisos para ver esta postulación.")
 
 
 class AcceptApplicationView(APIView):

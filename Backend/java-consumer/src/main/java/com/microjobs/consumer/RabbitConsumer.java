@@ -1,8 +1,5 @@
 package com.microjobs.consumer;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.microjobs.config.RabbitMQConfig;
 import com.microjobs.models.EventoPostulacion;
 import com.microjobs.processor.EventProcessor;
@@ -10,43 +7,59 @@ import com.microjobs.threads.ThreadPoolManager;
 import com.microjobs.utils.JsonUtil;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.DeliverCallback;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RabbitConsumer {
 
     private static final Logger logger = LoggerFactory.getLogger(RabbitConsumer.class);
 
-    private final RabbitMQConfig    rabbitMQConfig;
+    private final RabbitMQConfig rabbitMQConfig;
     private final ThreadPoolManager threadPoolManager;
-    private final EventProcessor    eventProcessor;
+    private final EventProcessor eventProcessor;
 
     private Channel channel;
+    private final Object channelLock = new Object();
 
-    public RabbitConsumer(RabbitMQConfig rabbitMQConfig,
-                          ThreadPoolManager threadPoolManager,
-                          EventProcessor eventProcessor) {
-        this.rabbitMQConfig    = rabbitMQConfig;
+    public RabbitConsumer(
+            RabbitMQConfig rabbitMQConfig,
+            ThreadPoolManager threadPoolManager,
+            EventProcessor eventProcessor
+    ) {
+        this.rabbitMQConfig = rabbitMQConfig;
         this.threadPoolManager = threadPoolManager;
-        this.eventProcessor    = eventProcessor;
+        this.eventProcessor = eventProcessor;
     }
 
     public void iniciar() throws Exception {
         this.channel = rabbitMQConfig.createChannel();
 
-        logger.info("👂 RabbitConsumer escuchando cola '{}'...", rabbitMQConfig.getQueueName());
+        logger.info("RabbitConsumer escuchando la cola '{}'.", rabbitMQConfig.getQueueName());
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-            long deliveryTag    = delivery.getEnvelope().getDeliveryTag();
+            long deliveryTag = delivery.getEnvelope().getDeliveryTag();
             String jsonRecibido = new String(delivery.getBody());
 
-            logger.info("📨 Mensaje recibido [tag={}]: {}", deliveryTag, jsonRecibido);
+            logger.info("Mensaje recibido [tag={}]: {}", deliveryTag, jsonRecibido);
 
             EventoPostulacion evento = JsonUtil.fromBytes(delivery.getBody(), EventoPostulacion.class);
 
             if (evento == null || evento.eventType() == null) {
-                logger.error("❌ Mensaje inválido o mal formado, descartando [tag={}]", deliveryTag);
-                channel.basicNack(deliveryTag, false, false);
+                logger.error("Mensaje invalido o mal formado. Se descartara [tag={}].", deliveryTag);
+                try {
+                    rejectMessage(deliveryTag);
+                } catch (Exception nackEx) {
+                    logger.error("Error enviando NACK para mensaje invalido [tag={}]: {}", deliveryTag, nackEx.getMessage(), nackEx);
+                }
                 return;
             }
+
+            logger.info(
+                    "Mensaje [tag={}] asignado al pool | event_type='{}' | application_id={}",
+                    deliveryTag,
+                    evento.eventType(),
+                    evento.applicationId()
+            );
 
             threadPoolManager.submit(() -> procesarEvento(evento, deliveryTag));
         };
@@ -55,40 +68,59 @@ public class RabbitConsumer {
                 rabbitMQConfig.getQueueName(),
                 false,
                 deliverCallback,
-                consumerTag -> logger.warn("⚠ Consumer cancelado por RabbitMQ: {}", consumerTag)
+                consumerTag -> logger.warn("Consumer cancelado por RabbitMQ: {}", consumerTag)
         );
     }
 
     private void procesarEvento(EventoPostulacion evento, long deliveryTag) {
         try {
-            logger.info("⚙ Procesando evento [tag={}] tipo='{}' application_id={}",
-                    deliveryTag, evento.eventType(), evento.applicationId());
+            logger.info(
+                    "Procesando mensaje [tag={}] | tipo='{}' | application_id={}",
+                    deliveryTag,
+                    evento.eventType(),
+                    evento.applicationId()
+            );
+
+            Thread.sleep(5000);
 
             eventProcessor.procesar(evento);
 
-            channel.basicAck(deliveryTag, false);
-            logger.info("✅ Evento procesado y confirmado [tag={}]", deliveryTag);
-
+            acknowledgeMessage(deliveryTag);
+            logger.info("Mensaje procesado y confirmado con ACK [tag={}].", deliveryTag);
         } catch (Exception e) {
-            logger.error("❌ Error procesando evento [tag={}]: {}", deliveryTag, e.getMessage(), e);
+            logger.error("Error procesando mensaje [tag={}]: {}", deliveryTag, e.getMessage(), e);
 
             try {
-                channel.basicNack(deliveryTag, false, false);
-                logger.warn("⚠ Mensaje rechazado (NACK) [tag={}]", deliveryTag);
+                rejectMessage(deliveryTag);
+                logger.warn("Mensaje rechazado con NACK [tag={}].", deliveryTag);
             } catch (Exception nackEx) {
-                logger.error("❌ Error enviando NACK [tag={}]: {}", deliveryTag, nackEx.getMessage());
+                logger.error("Error enviando NACK [tag={}]: {}", deliveryTag, nackEx.getMessage(), nackEx);
             }
+        }
+    }
+
+    private void acknowledgeMessage(long deliveryTag) throws Exception {
+        synchronized (channelLock) {
+            channel.basicAck(deliveryTag, false);
+        }
+    }
+
+    private void rejectMessage(long deliveryTag) throws Exception {
+        synchronized (channelLock) {
+            channel.basicNack(deliveryTag, false, false);
         }
     }
 
     public void cerrar() {
         try {
-            if (channel != null && channel.isOpen()) {
-                channel.close();
-                logger.info("Canal RabbitMQ cerrado correctamente.");
+            synchronized (channelLock) {
+                if (channel != null && channel.isOpen()) {
+                    channel.close();
+                    logger.info("Canal RabbitMQ cerrado correctamente.");
+                }
             }
         } catch (Exception e) {
-            logger.error("Error cerrando canal RabbitMQ: {}", e.getMessage());
+            logger.error("Error al cerrar el canal RabbitMQ: {}", e.getMessage(), e);
         }
     }
 }

@@ -6,6 +6,7 @@ class Notification(models.Model):
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
     type = models.CharField(max_length=80)
     message = models.CharField(max_length=255)
+    dedupe_key = models.CharField(max_length=120, unique=True, null=True, blank=True)
     extra_data = models.JSONField(default=dict, blank=True)
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from applications.views import AcceptApplicationView, ApplicationListCreateView, MyApplicationsView, ReceivedApplicationsView, RejectApplicationView
+from applications.views import AcceptApplicationView, ApplicationDetailView, ApplicationListCreateView, MyApplicationsView, ReceivedApplicationsView, RejectApplicationView
 
 
 urlpatterns = [
@@ -9,4 +9,5 @@ urlpatterns = [
     path("received/", ReceivedApplicationsView.as_view()),
     path("<int:pk>/accept/", AcceptApplicationView.as_view()),
     path("<int:pk>/reject/", RejectApplicationView.as_view()),
+    path("<int:pk>/", ApplicationDetailView.as_view()),
 ]

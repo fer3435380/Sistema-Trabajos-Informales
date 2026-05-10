@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+from django.core.exceptions import ImproperlyConfigured
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -38,9 +40,16 @@ def database_from_url(url):
     raise ValueError(f"DATABASE_URL no soportada: {url}")
 
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-django-secret")
 DEBUG = env_bool("DJANGO_DEBUG", True)
-ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0,*")
+
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "dev-django-secret"
+    else:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY es obligatorio cuando DJANGO_DEBUG=False")
+
+ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -117,7 +126,13 @@ CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", "http://localhost:8000,h
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", SECRET_KEY)
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_ACCESS_TOKEN_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "1440"))
-INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "dev-internal-key")
+
+INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY")
+if not INTERNAL_API_KEY:
+    if DEBUG:
+        INTERNAL_API_KEY = "dev-internal-key"
+    else:
+        raise ImproperlyConfigured("INTERNAL_API_KEY es obligatoria cuando DJANGO_DEBUG=False")
 
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
 RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE", "job_events")

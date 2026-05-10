@@ -1,25 +1,26 @@
 package com.microjobs.services;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.microjobs.models.EventoPostulacion;
 import com.microjobs.models.Notification;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NotificationService {
 
     private static final Logger logger = LoggerFactory.getLogger(NotificationService.class);
-
-    private static final String EMAIL_PREFIX = "📧 [EMAIL]";
-    private static final String PUSH_PREFIX  = "📱 [PUSH] ";
+    private static final String EMAIL_PREFIX = "[EMAIL]";
+    private static final String PUSH_PREFIX = "[PUSH]";
+    private static final String SECTION_LINE = "----------------------------------------";
 
     public Notification generarParaDueno(EventoPostulacion evento) {
         Notification notificacion = Notification.forOwner(evento);
 
-        logger.info("🔔 Notificación generada para dueño | usuario_id={} | tipo='{}' | mensaje='{}'",
-                notificacion.getUserId(),
+        logger.info(
+                "Notificacion creada para el duenio | recipient={} | tipo='{}' | mensaje='{}'",
+                notificacion.getRecipient(),
                 notificacion.getType(),
-                notificacion.getMessage());
+                notificacion.getMessage()
+        );
 
         return notificacion;
     }
@@ -27,10 +28,12 @@ public class NotificationService {
     public Notification generarParaPostulanteAceptado(EventoPostulacion evento) {
         Notification notificacion = Notification.forApplicantAccepted(evento);
 
-        logger.info("🔔 Notificación generada para postulante aceptado | usuario_id={} | tipo='{}' | mensaje='{}'",
-                notificacion.getUserId(),
+        logger.info(
+                "Notificacion creada para postulante aceptado | recipient={} | tipo='{}' | mensaje='{}'",
+                notificacion.getRecipient(),
                 notificacion.getType(),
-                notificacion.getMessage());
+                notificacion.getMessage()
+        );
 
         return notificacion;
     }
@@ -38,58 +41,63 @@ public class NotificationService {
     public Notification generarParaPostulanteRechazado(EventoPostulacion evento) {
         Notification notificacion = Notification.forApplicantRejected(evento);
 
-        logger.info("🔔 Notificación generada para postulante rechazado | usuario_id={} | tipo='{}' | mensaje='{}'",
-                notificacion.getUserId(),
+        logger.info(
+                "Notificacion creada para postulante rechazado | recipient={} | tipo='{}' | mensaje='{}'",
+                notificacion.getRecipient(),
                 notificacion.getType(),
-                notificacion.getMessage());
+                notificacion.getMessage()
+        );
 
         return notificacion;
     }
 
     public void simularEnvio(Notification notificacion) {
-        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        logger.info("📤 Simulando envío de notificación");
-        logger.info("   Usuario  : {}", notificacion.getUserId());
-        logger.info("   Tipo     : {}", notificacion.getType());
-        logger.info("   Mensaje  : {}", notificacion.getMessage());
-        logger.info("   Fecha    : {}", notificacion.getDate());
-        logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        logger.info(SECTION_LINE);
+        logger.info("Simulando envio de notificacion");
+        logger.info("Destinatario : {}", notificacion.getRecipient());
+        logger.info("Tipo         : {}", notificacion.getType());
+        logger.info("Mensaje      : {}", notificacion.getMessage());
+        logger.info(SECTION_LINE);
 
         simularEmail(notificacion);
         simularPush(notificacion);
     }
 
     private void simularEmail(Notification notificacion) {
-        logger.info("{} Para usuario_id={} | Asunto: '{}' | Cuerpo: '{}'",
+        logger.info(
+                "{} recipient={} | Asunto='{}' | Cuerpo='{}'",
                 EMAIL_PREFIX,
-                notificacion.getUserId(),
+                notificacion.getRecipient(),
                 construirAsunto(notificacion),
-                notificacion.getMessage());
+                notificacion.getMessage()
+        );
     }
 
     private void simularPush(Notification notificacion) {
-        logger.info("{} Para usuario_id={} | Título: '{}' | Cuerpo: '{}'",
+        logger.info(
+                "{} recipient={} | Titulo='{}' | Cuerpo='{}'",
                 PUSH_PREFIX,
-                notificacion.getUserId(),
+                notificacion.getRecipient(),
                 construirTituloPush(notificacion),
-                notificacion.getMessage());
+                notificacion.getMessage()
+        );
     }
 
     private String construirAsunto(Notification notificacion) {
         return switch (notificacion.getType()) {
-            case EventoPostulacion.CREATED_TYPE    -> "Nueva postulación recibida";
-            case EventoPostulacion.ACCEPTED_TYPE  -> "¡Tu postulación fue aceptada!";
-            case EventoPostulacion.REJECTED_TYPE -> "Actualización sobre tu postulación";
-            default                               -> "Notificación de Microjobs";
+            case EventoPostulacion.CREATED_TYPE -> "Nueva postulacion recibida";
+            case EventoPostulacion.ACCEPTED_TYPE -> "Tu postulacion fue aceptada";
+            case EventoPostulacion.REJECTED_TYPE -> "Actualizacion sobre tu postulacion";
+            default -> "Notificacion de Microjobs";
         };
     }
 
     private String construirTituloPush(Notification notificacion) {
         return switch (notificacion.getType()) {
-            case EventoPostulacion.CREATED_TYPE    -> "📋 Nueva postulación";
-            case EventoPostulacion.ACCEPTED_TYPE  -> "🎉 ¡Postulación aceptada!";
-            case EventoPostulacion.REJECTED_TYPE -> "❌ Postulación rechazada";
-            default                               -> "🔔 Microjobs";
+            case EventoPostulacion.CREATED_TYPE -> "Nueva postulacion";
+            case EventoPostulacion.ACCEPTED_TYPE -> "Postulacion aceptada";
+            case EventoPostulacion.REJECTED_TYPE -> "Postulacion rechazada";
+            default -> "Microjobs";
         };
     }
 }

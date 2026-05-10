@@ -31,9 +31,9 @@ public record EventoPostulacion (
     String applicantName
 
 ) {
-    public static final String CREATED_TYPE = "application_created";
-    public static final String ACCEPTED_TYPE = "application_accepted";
-    public static final String REJECTED_TYPE = "application_rejected";
+    public static final String CREATED_TYPE = "postulacion_creada";
+    public static final String ACCEPTED_TYPE = "postulacion_aceptada";
+    public static final String REJECTED_TYPE = "postulacion_rechazada";
 
     public static final String STATUS_PENDING  = "pending";
     public static final String STATUS_ACCEPTED = "accepted";
