@@ -45,3 +45,15 @@ class LogoutView(APIView):
 class MeView(APIView):
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+
+class UserStatsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        return Response(
+            {
+                "workers": User.objects.filter(role=User.Role.WORKER, is_active=True).count(),
+                "owners": User.objects.filter(role=User.Role.OWNER, is_active=True).count(),
+            }
+        )

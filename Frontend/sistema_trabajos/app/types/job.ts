@@ -16,6 +16,7 @@ export type Job = {
   type: string;
   location: string;
   payment: string;
+  creator: number;
   creator_name: string;
   status: "open" | "assigned" | "closed";
   created_at: string;
@@ -61,6 +62,11 @@ export type JobForm = {
   location: string;
   payment: string;
   description: string;
+};
+
+export type UserStats = {
+  workers: number;
+  owners: number;
 };
 
 export type FormSubmitHandler = (event: FormEvent<HTMLFormElement>) => void;

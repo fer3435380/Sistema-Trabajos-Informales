@@ -1,16 +1,18 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest, buildJobQuery, clearSession, persistSession, readSession } from "../lib/api";
 import { emptyFilters, emptyJobForm, roleLabels } from "../lib/constants";
-import type { Application, AuthForm, AuthResponse, Feedback, Filters, Job, JobForm as JobFormValues, Role, User } from "../types/job";
+import type { Application, AuthForm, AuthResponse, Feedback, Filters, Job, JobForm as JobFormValues, Role, User, UserStats } from "../types/job";
 import { ApplicationModal } from "./ApplicationModal";
 import { AuthPanel } from "./AuthPanel";
-import { JobForm } from "./JobForm";
+import { JobFormModal } from "./JobFormModal";
 import { JobList } from "./JobList";
 import { Metric } from "./Metric";
 import { MissionVision } from "./MissionVision";
+import { OwnerJobList } from "./OwnerJobList";
 import { PublicJobCard } from "./PublicJobCard";
 import { ReceivedApplications } from "./ReceivedApplications";
 import { UserSidebar } from "./UserSidebar";
@@ -19,6 +21,10 @@ export function LoginLanding() {
   const router = useRouter();
   const loginRef = useRef<HTMLDivElement>(null);
   const [recentJobs, setRecentJobs] = useState<Job[]>([]);
+  const [userStats, setUserStats] = useState<UserStats>({
+    workers: 0,
+    owners: 0,
+  });
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authForm, setAuthForm] = useState<AuthForm>({
     name: "",
@@ -46,10 +52,15 @@ export function LoginLanding() {
   useEffect(() => {
     const timeout = window.setTimeout(async () => {
       try {
-        const jobs = await apiRequest<Job[]>("/jobs/?status=open");
+        const [jobs, stats] = await Promise.all([
+          apiRequest<Job[]>("/jobs/?status=open"),
+          apiRequest<UserStats>("/users/stats/"),
+        ]);
         setRecentJobs(jobs.slice(0, 6));
+        setUserStats(stats);
       } catch {
         setRecentJobs([]);
+        setUserStats({ workers: 0, owners: 0 });
       }
     }, 0);
 
@@ -108,7 +119,15 @@ export function LoginLanding() {
           <div className="flex min-h-[390px] flex-col justify-between py-6">
             <div>
               <div className="mb-6 flex flex-wrap items-center gap-3">
-                <span className="brand-mark">STI</span>
+                <span className="brand-mark">
+                  <Image
+                    alt="Logo STI"
+                    className="brand-logo"
+                    height={28}
+                    src="/helmet-svgrepo-com.svg"
+                    width={28}
+                  />
+                </span>
                 <span className="pill pill-blue">En busqueda de empleo?</span>
                 <span className="text-sm font-semibold text-slate-600">
                   Confianza · Profesionalidad · Entrega
@@ -124,8 +143,8 @@ export function LoginLanding() {
             </div>
             
             <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3">
-              <Metric label="Contratistas" value="?" />
-              <Metric label="Trabajadores" value="?" />
+              <Metric label="Empleadores" value={userStats.owners.toString()} />
+              <Metric label="Trabajadores" value={userStats.workers.toString()} />
               <Metric
                 label="Trabajos recientes"
                 value={recentJobs.length.toString()}
@@ -201,6 +220,8 @@ export function DashboardApp() {
   const [coverLetters, setCoverLetters] = useState<Record<number, string>>({});
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [jobForm, setJobForm] = useState<JobFormValues>(emptyJobForm);
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false);
+  const [ownerNotice, setOwnerNotice] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isWorking, setIsWorking] = useState(false);
   const [, setFeedback] = useState<Feedback>({
@@ -212,6 +233,10 @@ export function DashboardApp() {
   const appliedJobIds = useMemo(
     () => new Set(myApplications.map((application) => application.job)),
     [myApplications],
+  );
+  const ownerJobs = useMemo(
+    () => jobs.filter((job) => job.creator === user?.id),
+    [jobs, user?.id],
   );
 
   const loadApplications = useCallback(
@@ -316,6 +341,8 @@ export function DashboardApp() {
         token,
       );
       setJobForm(emptyJobForm);
+      setIsJobModalOpen(false);
+      setOwnerNotice("Trabajo publicado correctamente.");
       setFeedback({ tone: "success", message: "Trabajo publicado." });
       await loadJobs(debouncedFilters);
     } catch (error) {
@@ -412,7 +439,15 @@ export function DashboardApp() {
       <header className="dashboard-header">
         <div>
           <div className="mb-3 flex flex-wrap items-center gap-3">
-            <span className="brand-mark">STI</span>
+            <span className="brand-mark">
+              <Image
+                alt="Logo STI"
+                className="brand-logo"
+                height={28}
+                src="/helmet-svgrepo-com.svg"
+                width={28}
+              />
+            </span>
             <span className="pill pill-blue">{roleLabels[user.role]}</span>
           </div>
           <h1>Panel de trabajo</h1>
@@ -437,37 +472,52 @@ export function DashboardApp() {
         <div className="dashboard-content">
           {isOwner ? (
             <div className="owner-panel-slot">
-              <JobForm
-                form={jobForm}
-                isWorking={isWorking}
-                onChange={setJobForm}
-                onSubmit={handleCreateJob}
-              />
+              <button
+                className="btn btn-accent"
+                onClick={() => setIsJobModalOpen(true)}
+                type="button"
+              >
+                <span aria-hidden="true">+</span>
+                Publicar trabajo
+              </button>
+              {ownerNotice ? (
+                <span className="status-message success owner-notice">
+                  {ownerNotice}
+                </span>
+              ) : null}
             </div>
           ) : null}
 
           <section className="space-y-5">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Oportunidades</p>
-                <h2>Trabajos disponibles</h2>
+                <p className="eyebrow">
+                  {isOwner ? "Gestion" : "Oportunidades"}
+                </p>
+                <h2>
+                  {isOwner ? "Mis publicaciones" : "Trabajos disponibles"}
+                </h2>
               </div>
             </div>
 
-            <JobList
-              appliedJobIds={appliedJobIds}
-              coverLetters={coverLetters}
-              isLoading={isLoading}
-              isWorking={isWorking}
-              jobs={jobs}
-              onApply={handleApply}
-              onCoverLetterChange={(jobId, value) =>
-                setCoverLetters((current) => ({
-                  ...current,
-                  [jobId]: value,
-                }))
-              }
-            />
+            {isOwner ? (
+              <OwnerJobList isLoading={isLoading} jobs={ownerJobs} />
+            ) : (
+              <JobList
+                appliedJobIds={appliedJobIds}
+                coverLetters={coverLetters}
+                isLoading={isLoading}
+                isWorking={isWorking}
+                jobs={jobs}
+                onApply={handleApply}
+                onCoverLetterChange={(jobId, value) =>
+                  setCoverLetters((current) => ({
+                    ...current,
+                    [jobId]: value,
+                  }))
+                }
+              />
+            )}
           </section>
 
           {isOwner ? (
@@ -484,6 +534,15 @@ export function DashboardApp() {
         <ApplicationModal
           application={selectedApplication}
           onClose={() => setSelectedApplication(null)}
+        />
+      ) : null}
+      {isJobModalOpen ? (
+        <JobFormModal
+          form={jobForm}
+          isWorking={isWorking}
+          onChange={setJobForm}
+          onClose={() => setIsJobModalOpen(false)}
+          onSubmit={handleCreateJob}
         />
       ) : null}
     </main>

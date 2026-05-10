@@ -1,6 +1,6 @@
 import { ApplicationCards } from "./ApplicationCards";
 import { JobFilters } from "./JobFilters";
-import { roleLabels, statusLabels } from "../lib/constants";
+import { roleLabels } from "../lib/constants";
 import type { Application, Filters, User } from "../types/job";
 
 type UserSidebarProps = {
@@ -22,6 +22,8 @@ export function UserSidebar({
   onRefresh,
   onSelectApplication,
 }: UserSidebarProps) {
+  const isOwner = user.role === "owner" || user.role === "admin";
+
   return (
     <aside className="sidebar-panel">
       <div className="sidebar-user">
@@ -38,23 +40,27 @@ export function UserSidebar({
         <span>Rol</span>
         <strong>{roleLabels[user.role]}</strong>
       </div>
-      <div className="sidebar-detail">
-        <span>Postulaciones</span>
-        <strong>{applications.length}</strong>
-      </div>
-      <div className="sidebar-section">
-        <div className="panel-title">
-          <div>
-            <p className="eyebrow">Resumen</p>
-            <h2>Mis postulaciones</h2>
+      {!isOwner ? (
+        <>
+          <div className="sidebar-detail">
+            <span>Postulaciones</span>
+            <strong>{applications.length}</strong>
           </div>
-        </div>
-        <ApplicationCards
-          applications={applications}
-          compact
-          onSelectApplication={onSelectApplication}
-        />
-      </div>
+          <div className="sidebar-section">
+            <div className="panel-title">
+              <div>
+                <p className="eyebrow">Resumen</p>
+                <h2>Mis postulaciones</h2>
+              </div>
+            </div>
+            <ApplicationCards
+              applications={applications}
+              compact
+              onSelectApplication={onSelectApplication}
+            />
+          </div>
+        </>
+      ) : null}
       <div className="sidebar-section">
         <JobFilters
           embedded

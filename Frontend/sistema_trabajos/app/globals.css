@@ -99,16 +99,19 @@ textarea:focus {
 
 .brand-mark {
   align-items: center;
-  background: var(--navy);
+  background: #ffffff;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  color: white;
   display: inline-flex;
-  font-size: 0.88rem;
-  font-weight: 950;
   height: 42px;
   justify-content: center;
-  letter-spacing: 0;
   width: 50px;
+}
+
+.brand-logo {
+  display: block;
+  height: 28px;
+  width: 28px;
 }
 
 .pill {
@@ -860,7 +863,30 @@ h3 {
 }
 
 .owner-panel-slot {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   max-width: 100%;
+}
+
+.owner-notice {
+  box-shadow: 0 12px 28px rgba(22, 132, 91, 0.14);
+}
+
+.owner-job-card {
+  border-left: 4px solid var(--blue);
+}
+
+.job-form-modal {
+  max-height: min(92vh, 760px);
+  overflow: auto;
+}
+
+.job-form-modal .panel {
+  border: 0;
+  box-shadow: none;
+  padding: 0;
 }
 
 @media (min-width: 700px) {
