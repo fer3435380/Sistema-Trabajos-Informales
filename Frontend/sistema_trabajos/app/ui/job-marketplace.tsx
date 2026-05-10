@@ -289,6 +289,8 @@ export function LoginLanding() {
         </div>
       </section>
 
+      <MissionVision />
+
       <section className="mx-auto w-full max-w-7xl px-5 py-10 md:px-8 lg:px-10">
         <div className="section-heading">
           <div>
@@ -584,43 +586,35 @@ export function DashboardApp() {
       <section className="dashboard-shell">
         <UserSidebar
           applications={myApplications}
+          filters={filters}
+          isLoading={isLoading}
           user={user}
+          onFilterChange={setFilters}
+          onRefresh={() => loadJobs(filters)}
           onSelectApplication={setSelectedApplication}
         />
 
         <div className="dashboard-content">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Resumen</p>
-              <h2>Mis postulaciones</h2>
+              <p className="eyebrow">Estado</p>
+              <h2>Panel activo</h2>
             </div>
             <span className={`status-message ${feedback.tone}`}>
               {feedback.message}
             </span>
           </div>
 
-          <ApplicationCards
-            applications={myApplications}
-            onSelectApplication={setSelectedApplication}
-          />
-
-          <div className="search-layout">
-            <FilterPanel
-              filters={filters}
-              isLoading={isLoading}
-              onChange={setFilters}
-              onRefresh={() => loadJobs(filters)}
-            />
-
-            {isOwner ? (
+          {isOwner ? (
+            <div className="owner-panel-slot">
               <CreateJobPanel
                 form={jobForm}
                 isWorking={isWorking}
                 onChange={setJobForm}
                 onSubmit={handleCreateJob}
               />
-            ) : null}
-          </div>
+            </div>
+          ) : null}
 
           <section className="space-y-5">
             <div className="section-heading">
@@ -678,6 +672,33 @@ export function DashboardApp() {
         />
       ) : null}
     </main>
+  );
+}
+
+function MissionVision() {
+  return (
+    <section className="mission-band">
+      <div className="mx-auto grid w-full max-w-7xl gap-4 px-5 py-8 md:grid-cols-2 md:px-8 lg:px-10">
+        <article className="mission-card">
+          <p className="eyebrow">Mision</p>
+          <h2>Conectar trabajo local con confianza</h2>
+          <p>
+            Facilitar que personas y negocios encuentren apoyo informal de
+            forma clara, rapida y organizada, manteniendo postulaciones y
+            estados visibles desde una plataforma simple.
+          </p>
+        </article>
+        <article className="mission-card mission-card-accent">
+          <p className="eyebrow">Vision</p>
+          <h2>Una red laboral cercana y verificable</h2>
+          <p>
+            Impulsar una comunidad donde publicar oportunidades, postular y
+            gestionar decisiones sea accesible desde cualquier dispositivo,
+            especialmente desde el telefono.
+          </p>
+        </article>
+      </div>
+    </section>
   );
 }
 
@@ -801,11 +822,19 @@ function AuthPanel({
 
 function UserSidebar({
   applications,
+  filters,
+  isLoading,
   user,
+  onFilterChange,
+  onRefresh,
   onSelectApplication,
 }: {
   applications: Application[];
+  filters: Filters;
+  isLoading: boolean;
   user: User;
+  onFilterChange: (filters: Filters) => void;
+  onRefresh: () => void;
   onSelectApplication: (application: Application) => void;
 }) {
   return (
@@ -827,6 +856,28 @@ function UserSidebar({
       <div className="sidebar-detail">
         <span>Postulaciones</span>
         <strong>{applications.length}</strong>
+      </div>
+      <div className="sidebar-section">
+        <div className="panel-title">
+          <div>
+            <p className="eyebrow">Resumen</p>
+            <h2>Mis postulaciones</h2>
+          </div>
+        </div>
+        <ApplicationCards
+          applications={applications}
+          compact
+          onSelectApplication={onSelectApplication}
+        />
+      </div>
+      <div className="sidebar-section">
+        <FilterPanel
+          embedded
+          filters={filters}
+          isLoading={isLoading}
+          onChange={onFilterChange}
+          onRefresh={onRefresh}
+        />
       </div>
       <div>
         <p className="eyebrow mb-3">Lista</p>
@@ -856,9 +907,11 @@ function UserSidebar({
 
 function ApplicationCards({
   applications,
+  compact = false,
   onSelectApplication,
 }: {
   applications: Application[];
+  compact?: boolean;
   onSelectApplication: (application: Application) => void;
 }) {
   if (applications.length === 0) {
@@ -870,7 +923,7 @@ function ApplicationCards({
   }
 
   return (
-    <div className="application-grid">
+    <div className={compact ? "application-grid compact" : "application-grid"}>
       {applications.slice(0, 4).map((application) => (
         <button
           className="application-card"
@@ -890,18 +943,20 @@ function ApplicationCards({
 }
 
 function FilterPanel({
+  embedded = false,
   filters,
   isLoading,
   onChange,
   onRefresh,
 }: {
+  embedded?: boolean;
   filters: Filters;
   isLoading: boolean;
   onChange: (filters: Filters) => void;
   onRefresh: () => void;
 }) {
   return (
-    <div className="panel">
+    <div className={embedded ? "filter-panel-embedded" : "panel"}>
       <div className="panel-title">
         <div>
           <p className="eyebrow">Busqueda</p>
