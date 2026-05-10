@@ -1,5 +1,6 @@
 package com.microjobs.services;
 
+import com.microjobs.models.ApplicationDetails;
 import com.microjobs.models.Notification;
 import com.microjobs.utils.JsonUtil;
 import io.github.cdimascio.dotenv.Dotenv;
@@ -33,16 +34,16 @@ public class PythonApiService {
         logger.info("PythonApiService iniciado | base_url={}", baseUrl);
     }
 
-    public void guardarNotificacion(Notification notificacion) throws Exception {
-        String json = JsonUtil.toJson(notificacion);
+    public void saveNotification(Notification notification) throws Exception {
+        String json = JsonUtil.toJson(notification);
         if (json == null) {
             throw new IllegalStateException("No se pudo serializar la notificacion para enviarla a Python.");
         }
 
         logger.info(
                 "Enviando notificacion a Python | recipient={} | dedupe_key={} | body={}",
-                notificacion.getRecipient(),
-                notificacion.getDedupeKey(),
+                notification.getRecipient(),
+                notification.getDedupeKey(),
                 json
         );
 
@@ -59,8 +60,8 @@ public class PythonApiService {
         if (response.statusCode() == 200 || response.statusCode() == 201) {
             logger.info(
                     "Notificacion guardada en Python | recipient={} | dedupe_key={} | status={}",
-                    notificacion.getRecipient(),
-                    notificacion.getDedupeKey(),
+                    notification.getRecipient(),
+                    notification.getDedupeKey(),
                     response.statusCode()
             );
             return;
@@ -74,7 +75,7 @@ public class PythonApiService {
         throw new Exception("Error al guardar notificacion, status: " + response.statusCode());
     }
 
-    public String obtenerDatosPostulacion(Long applicationId) throws Exception {
+    public ApplicationDetails getApplicationDetails(Long applicationId) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/v1/applications/" + applicationId + "/"))
                 .header("Content-Type", "application/json")
@@ -86,8 +87,24 @@ public class PythonApiService {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         if (response.statusCode() == 200) {
-            logger.info("Datos de postulacion obtenidos | application_id={}", applicationId);
-            return response.body();
+            ApplicationDetails applicationDetails = JsonUtil.fromJson(response.body(), ApplicationDetails.class);
+            if (applicationDetails == null) {
+                logger.error(
+                        "La respuesta de Python no pudo convertirse a ApplicationDetails | application_id={} | body={}",
+                        applicationId,
+                        response.body()
+                );
+                throw new IllegalStateException("Respuesta invalida al obtener la postulacion " + applicationId);
+            }
+
+            logger.info(
+                    "Datos de postulacion obtenidos | application_id={} | job_id={} | applicant_id={} | status={}",
+                    applicationId,
+                    applicationDetails.job(),
+                    applicationDetails.applicant(),
+                    applicationDetails.status()
+            );
+            return applicationDetails;
         }
 
         logger.error(

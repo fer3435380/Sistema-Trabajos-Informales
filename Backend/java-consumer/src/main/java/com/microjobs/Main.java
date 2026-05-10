@@ -17,34 +17,34 @@ public class Main {
     public static void main(String[] args) {
         logBanner("Iniciando Java Consumer - Microjobs");
 
-        RabbitMQConfig rabbitMQConfig = new RabbitMQConfig();
-        ThreadPoolManager threadPoolManager = new ThreadPoolManager();
+        RabbitMQConfig rabbitConfig = new RabbitMQConfig();
+        ThreadPoolManager threadPool = new ThreadPoolManager();
         NotificationService notificationService = new NotificationService();
         PythonApiService pythonApiService = new PythonApiService();
         EventProcessor eventProcessor = new EventProcessor(notificationService, pythonApiService);
-        RabbitConsumer rabbitConsumer = new RabbitConsumer(rabbitMQConfig, threadPoolManager, eventProcessor);
+        RabbitConsumer rabbitConsumer = new RabbitConsumer(rabbitConfig, threadPool, eventProcessor);
 
-        registrarShutdownHook(rabbitMQConfig, threadPoolManager, rabbitConsumer);
+        registerShutdownHook(rabbitConfig, threadPool, rabbitConsumer);
 
         try {
-            rabbitMQConfig.connect();
-            rabbitConsumer.iniciar();
+            rabbitConfig.connect();
+            rabbitConsumer.start();
         } catch (Exception e) {
             logger.error("Error fatal al iniciar el consumer: {}", e.getMessage(), e);
             System.exit(1);
         }
     }
 
-    private static void registrarShutdownHook(
-            RabbitMQConfig rabbitMQConfig,
-            ThreadPoolManager threadPoolManager,
+    private static void registerShutdownHook(
+            RabbitMQConfig rabbitConfig,
+            ThreadPoolManager threadPool,
             RabbitConsumer rabbitConsumer
     ) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             logBanner("Deteniendo Java Consumer - Microjobs");
-            rabbitConsumer.cerrar();
-            threadPoolManager.shutdown();
-            rabbitMQConfig.close();
+            rabbitConsumer.close();
+            threadPool.shutdown();
+            rabbitConfig.close();
             logger.info("Sistema detenido correctamente.");
         }));
     }

@@ -1,7 +1,7 @@
 package com.microjobs.consumer;
 
 import com.microjobs.config.RabbitMQConfig;
-import com.microjobs.models.EventoPostulacion;
+import com.microjobs.models.ApplicationEvent;
 import com.microjobs.processor.EventProcessor;
 import com.microjobs.threads.ThreadPoolManager;
 import com.microjobs.utils.JsonUtil;
@@ -31,25 +31,25 @@ public class RabbitConsumer {
         this.eventProcessor = eventProcessor;
     }
 
-    public void iniciar() throws Exception {
+    public void start() throws Exception {
         this.channel = rabbitMQConfig.createChannel();
 
         logger.info("RabbitConsumer escuchando la cola '{}'.", rabbitMQConfig.getQueueName());
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
             long deliveryTag = delivery.getEnvelope().getDeliveryTag();
-            String jsonRecibido = new String(delivery.getBody());
+            String receivedJson = new String(delivery.getBody());
 
-            logger.info("Mensaje recibido [tag={}]: {}", deliveryTag, jsonRecibido);
+            logger.info("Mensaje recibido [tag={}]: {}", deliveryTag, receivedJson);
 
-            EventoPostulacion evento = JsonUtil.fromBytes(delivery.getBody(), EventoPostulacion.class);
+            ApplicationEvent event = JsonUtil.fromBytes(delivery.getBody(), ApplicationEvent.class);
 
-            if (evento == null || evento.eventType() == null) {
+            if (event == null || event.eventType() == null) {
                 logger.error("Mensaje invalido o mal formado. Se descartara [tag={}].", deliveryTag);
                 try {
                     rejectMessage(deliveryTag);
-                } catch (Exception nackEx) {
-                    logger.error("Error enviando NACK para mensaje invalido [tag={}]: {}", deliveryTag, nackEx.getMessage(), nackEx);
+                } catch (Exception nackException) {
+                    logger.error("Error enviando NACK para mensaje invalido [tag={}]: {}", deliveryTag, nackException.getMessage(), nackException);
                 }
                 return;
             }
@@ -57,11 +57,11 @@ public class RabbitConsumer {
             logger.info(
                     "Mensaje [tag={}] asignado al pool | event_type='{}' | application_id={}",
                     deliveryTag,
-                    evento.eventType(),
-                    evento.applicationId()
+                    event.eventType(),
+                    event.applicationId()
             );
 
-            threadPoolManager.submit(() -> procesarEvento(evento, deliveryTag));
+            threadPoolManager.submit(() -> processEvent(event, deliveryTag));
         };
 
         channel.basicConsume(
@@ -72,18 +72,18 @@ public class RabbitConsumer {
         );
     }
 
-    private void procesarEvento(EventoPostulacion evento, long deliveryTag) {
+    private void processEvent(ApplicationEvent event, long deliveryTag) {
         try {
             logger.info(
                     "Procesando mensaje [tag={}] | tipo='{}' | application_id={}",
                     deliveryTag,
-                    evento.eventType(),
-                    evento.applicationId()
+                    event.eventType(),
+                    event.applicationId()
             );
 
             Thread.sleep(5000);
 
-            eventProcessor.procesar(evento);
+            eventProcessor.process(event);
 
             acknowledgeMessage(deliveryTag);
             logger.info("Mensaje procesado y confirmado con ACK [tag={}].", deliveryTag);
@@ -93,8 +93,8 @@ public class RabbitConsumer {
             try {
                 rejectMessage(deliveryTag);
                 logger.warn("Mensaje rechazado con NACK [tag={}].", deliveryTag);
-            } catch (Exception nackEx) {
-                logger.error("Error enviando NACK [tag={}]: {}", deliveryTag, nackEx.getMessage(), nackEx);
+            } catch (Exception nackException) {
+                logger.error("Error enviando NACK [tag={}]: {}", deliveryTag, nackException.getMessage(), nackException);
             }
         }
     }
@@ -111,7 +111,7 @@ public class RabbitConsumer {
         }
     }
 
-    public void cerrar() {
+    public void close() {
         try {
             synchronized (channelLock) {
                 if (channel != null && channel.isOpen()) {

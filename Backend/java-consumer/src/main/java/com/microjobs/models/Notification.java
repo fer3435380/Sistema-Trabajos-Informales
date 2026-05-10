@@ -42,33 +42,33 @@ public class Notification {
         }
     }
 
-    public static Notification forOwner(EventoPostulacion evento) {
+    public static Notification forOwner(ApplicationEvent event) {
         return builder()
-                .recipient(evento.ownerId())
-                .type(evento.eventType())
-                .message(evento.applicantName() + " se postulo a tu trabajo '" + evento.jobTitle() + "'")
-                .dedupeKey(buildDedupeKey(evento.ownerId(), evento.eventType(), evento.applicationId()))
-                .extraData(new ExtraData(evento.applicationId(), evento.jobId()))
+                .recipient(event.ownerId())
+                .type(event.eventType())
+                .message(event.applicantName() + " se postulo a tu trabajo '" + event.jobTitle() + "'")
+                .dedupeKey(buildDedupeKey(event.ownerId(), event.eventType(), event.applicationId()))
+                .extraData(new ExtraData(event.applicationId(), event.jobId()))
                 .build();
     }
 
-    public static Notification forApplicantAccepted(EventoPostulacion evento) {
+    public static Notification forApplicantAccepted(ApplicationEvent event) {
         return builder()
-                .recipient(evento.applicantId())
-                .type(evento.eventType())
-                .message("Tu postulacion para '" + evento.jobTitle() + "' fue aceptada")
-                .dedupeKey(buildDedupeKey(evento.applicantId(), evento.eventType(), evento.applicationId()))
-                .extraData(new ExtraData(evento.applicationId(), evento.jobId()))
+                .recipient(event.applicantId())
+                .type(event.eventType())
+                .message("Tu postulacion para '" + event.jobTitle() + "' fue aceptada")
+                .dedupeKey(buildDedupeKey(event.applicantId(), event.eventType(), event.applicationId()))
+                .extraData(new ExtraData(event.applicationId(), event.jobId()))
                 .build();
     }
 
-    public static Notification forApplicantRejected(EventoPostulacion evento) {
+    public static Notification forApplicantRejected(ApplicationEvent event) {
         return builder()
-                .recipient(evento.applicantId())
-                .type(evento.eventType())
-                .message("Tu postulacion para '" + evento.jobTitle() + "' fue rechazada")
-                .dedupeKey(buildDedupeKey(evento.applicantId(), evento.eventType(), evento.applicationId()))
-                .extraData(new ExtraData(evento.applicationId(), evento.jobId()))
+                .recipient(event.applicantId())
+                .type(event.eventType())
+                .message("Tu postulacion para '" + event.jobTitle() + "' fue rechazada")
+                .dedupeKey(buildDedupeKey(event.applicantId(), event.eventType(), event.applicationId()))
+                .extraData(new ExtraData(event.applicationId(), event.jobId()))
                 .build();
     }
 

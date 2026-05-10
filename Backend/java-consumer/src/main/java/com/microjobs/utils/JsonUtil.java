@@ -16,12 +16,12 @@ public class JsonUtil {
 
     private JsonUtil() {}
     
-    public static <T> T fromJson(String json, Class<T> clase) {
+    public static <T> T fromJson(String json, Class<T> targetClass) {
         
         try{
-            return mapper.readValue(json, clase);
+            return mapper.readValue(json, targetClass);
         }catch (JsonProcessingException e) {
-            logger.error("Error deserializando JSON a {}: {}", clase.getSimpleName(), e.getMessage());
+            logger.error("Error deserializando JSON a {}: {}", targetClass.getSimpleName(), e.getMessage());
             return null;
         }
     }
@@ -44,11 +44,11 @@ public class JsonUtil {
         }
     }
 
-    public static <T> T fromBytes(byte[] bytes, Class<T> clase){
+    public static <T> T fromBytes(byte[] bytes, Class<T> targetClass){
         try {
-            return mapper.readValue(bytes, clase);
+            return mapper.readValue(bytes, targetClass);
         } catch (Exception e){
-            logger.error("Error deserializando bytes a {}: {}", clase.getSimpleName(), e.getMessage());
+            logger.error("Error deserializando bytes a {}: {}", targetClass.getSimpleName(), e.getMessage());
             return null;
         }
     }

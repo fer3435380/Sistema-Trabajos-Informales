@@ -16,7 +16,7 @@ public class ThreadPoolManager {
     private static final Logger logger = LoggerFactory.getLogger(ThreadPoolManager.class);
 
     private final ExecutorService executorService;
-    private final AtomicInteger tareasActivas = new AtomicInteger(0);
+    private final AtomicInteger activeTaskCount = new AtomicInteger(0);
     private final Semaphore semaphore;
 
     public ThreadPoolManager() {
@@ -35,14 +35,14 @@ public class ThreadPoolManager {
         );
     }
 
-    public void submit(Runnable tarea) {
+    public void submit(Runnable task) {
         executorService.submit(() -> {
             boolean acquired = false;
             try {
                 semaphore.acquire();
                 acquired = true;
 
-                int activeTasks = tareasActivas.incrementAndGet();
+                int activeTasks = activeTaskCount.incrementAndGet();
                 String threadName = Thread.currentThread().getName();
 
                 logger.info(
@@ -51,7 +51,7 @@ public class ThreadPoolManager {
                         activeTasks
                 );
 
-                tarea.run();
+                task.run();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 logger.error("Hilo interrumpido esperando cupo en el pool: {}", e.getMessage(), e);
@@ -59,7 +59,7 @@ public class ThreadPoolManager {
                 logger.error("Error ejecutando tarea: {}", e.getMessage(), e);
             } finally {
                 if (acquired) {
-                    int remainingTasks = tareasActivas.decrementAndGet();
+                    int remainingTasks = activeTaskCount.decrementAndGet();
                     semaphore.release();
 
                     logger.info(
@@ -72,16 +72,16 @@ public class ThreadPoolManager {
         });
     }
 
-    public int getTareasActivas() {
-        return tareasActivas.get();
+    public int getActiveTasks() {
+        return activeTaskCount.get();
     }
 
-    public boolean isActivo() {
+    public boolean isActive() {
         return !executorService.isShutdown();
     }
 
     public void shutdown() {
-        logger.info("Deteniendo ThreadPoolManager | tareas_activas={}", tareasActivas.get());
+        logger.info("Deteniendo ThreadPoolManager | tareas_activas={}", activeTaskCount.get());
         executorService.shutdown();
 
         try {
