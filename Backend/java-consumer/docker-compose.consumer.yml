@@ -1,0 +1,15 @@
+services:
+  java-consumer:
+    build:
+      context: .
+    container_name: trabajos-java-consumer
+    env_file:
+      - .env.docker
+    restart: unless-stopped
+    networks:
+      - backend-shared
+
+networks:
+  backend-shared:
+    external: true
+    name: ${JAVA_CONSUMER_NETWORK}

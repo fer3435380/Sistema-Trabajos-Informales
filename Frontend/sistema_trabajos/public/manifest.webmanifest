@@ -1,0 +1,19 @@
+{
+  "name": "Sistema de Trabajos Informales",
+  "short_name": "STI",
+  "description": "Plataforma para publicar trabajos informales y gestionar postulaciones.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f8fc",
+  "theme_color": "#2f6ee8",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/helmet-svgrepo-com.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
