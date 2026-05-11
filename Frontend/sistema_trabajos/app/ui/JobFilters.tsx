@@ -16,15 +16,23 @@ export function JobFilters({
   onRefresh,
 }: JobFiltersProps) {
   return (
-    <div className={embedded ? "filter-panel-embedded" : "panel"}>
-      <div className="panel-title">
+    <div
+      className={
+        embedded
+          ? "grid gap-4"
+          : "grid gap-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)]"
+      }
+    >
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="eyebrow">Busqueda</p>
-          <h2>Filtros</h2>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--orange)]">
+            Busqueda
+          </p>
+          <h2 className="text-xl font-black text-slate-950">Filtros</h2>
         </div>
         <button
           aria-label="Actualizar trabajos"
-          className="icon-button"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-sm font-black text-slate-600 transition hover:bg-slate-200 disabled:opacity-60"
           disabled={isLoading}
           onClick={onRefresh}
           title="Actualizar trabajos"
@@ -34,9 +42,10 @@ export function JobFilters({
         </button>
       </div>
 
-      <label>
+      <label className="grid gap-2 text-sm font-extrabold text-slate-700">
         Texto
         <input
+          className="min-h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 sm:text-sm"
           onChange={(event) =>
             onChange({ ...filters, search: event.target.value })
           }
@@ -44,9 +53,10 @@ export function JobFilters({
           value={filters.search}
         />
       </label>
-      <label>
+      <label className="grid gap-2 text-sm font-extrabold text-slate-700">
         Tipo
         <input
+          className="min-h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 sm:text-sm"
           onChange={(event) =>
             onChange({ ...filters, type: event.target.value })
           }
@@ -54,9 +64,10 @@ export function JobFilters({
           value={filters.type}
         />
       </label>
-      <label>
+      <label className="grid gap-2 text-sm font-extrabold text-slate-700">
         Ubicacion
         <input
+          className="min-h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 sm:text-sm"
           onChange={(event) =>
             onChange({ ...filters, location: event.target.value })
           }
@@ -64,9 +75,10 @@ export function JobFilters({
           value={filters.location}
         />
       </label>
-      <label>
+      <label className="grid gap-2 text-sm font-extrabold text-slate-700">
         Estado
         <select
+          className="min-h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 sm:text-sm"
           onChange={(event) =>
             onChange({ ...filters, status: event.target.value })
           }

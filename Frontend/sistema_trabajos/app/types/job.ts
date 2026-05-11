@@ -32,6 +32,28 @@ export type Application = {
   created_at: string;
 };
 
+export type NotificationItem = {
+  id: number;
+  recipient: number;
+  type: string;
+  message: string;
+  dedupe_key?: string | null;
+  extra_data?: {
+    application_id?: number;
+    job_id?: number;
+  };
+  is_read: boolean;
+  read_at?: string | null;
+  created_at: string;
+};
+
+export type NotificationListResponse = {
+  items: NotificationItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
 export type AuthResponse = {
   access_token: string;
   user: User;

@@ -42,3 +42,39 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(request).then((cached) => cached || caches.match("/"))),
   );
 });
+
+self.addEventListener("message", (event) => {
+  const data = event.data;
+
+  if (!data || data.type !== "SHOW_NOTIFICATION") {
+    return;
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? "Sistema de Trabajos Informales", {
+      body: data.body ?? "",
+      tag: data.tag,
+      data: data.data ?? { url: "/dashboard" },
+      renotify: true,
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data?.url ?? "/dashboard";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if ("focus" in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+
+      return clients.openWindow(targetUrl);
+    }),
+  );
+});
