@@ -47,7 +47,6 @@ async function showServiceWorkerNotification(notification: NotificationItem) {
   await registration.showNotification("Sistema de Trabajos Informales", {
     body: payload.body,
     tag: payload.tag,
-    renotify: true,
     data: payload.data,
   });
 

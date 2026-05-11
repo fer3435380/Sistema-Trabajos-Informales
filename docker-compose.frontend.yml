@@ -1,0 +1,13 @@
+services:
+  frontend:
+    build:
+      context: ./Frontend/sistema_trabajos
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://100.103.163.87:8000/api/v1}
+    container_name: trabajos-frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://100.103.163.87:8000/api/v1}
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
