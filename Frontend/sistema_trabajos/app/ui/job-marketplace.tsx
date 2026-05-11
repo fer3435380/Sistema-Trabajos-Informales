@@ -511,7 +511,7 @@ export function DashboardApp() {
       return;
     }
 
-    let shouldRefreshWorkerApplications = false;
+    let shouldRefreshApplications = false;
 
     for (const notification of notifications) {
       if (announcedNotificationIds.current.has(notification.id)) {
@@ -519,13 +519,13 @@ export function DashboardApp() {
       }
 
       announcedNotificationIds.current.add(notification.id);
-      if (token && user && user.role === "worker") {
-        shouldRefreshWorkerApplications = true;
+      if (token && user) {
+        shouldRefreshApplications = true;
       }
       void showSystemNotification(notification);
     }
 
-    if (shouldRefreshWorkerApplications && token && user && user.role === "worker") {
+    if (shouldRefreshApplications && token && user) {
       const timeoutId = window.setTimeout(() => {
         void loadApplications(token, user);
       }, 0);
