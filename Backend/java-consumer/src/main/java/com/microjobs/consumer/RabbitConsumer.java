@@ -1,5 +1,6 @@
 package com.microjobs.consumer;
 
+import com.microjobs.config.Env;
 import com.microjobs.config.RabbitMQConfig;
 import com.microjobs.models.ApplicationEvent;
 import com.microjobs.processor.EventProcessor;
@@ -17,6 +18,8 @@ public class RabbitConsumer {
     private final RabbitMQConfig rabbitMQConfig;
     private final ThreadPoolManager threadPoolManager;
     private final EventProcessor eventProcessor;
+    private final long processingDelayMs;
+    private final long cpuBurnMs;
 
     private Channel channel;
     private final Object channelLock = new Object();
@@ -29,6 +32,8 @@ public class RabbitConsumer {
         this.rabbitMQConfig = rabbitMQConfig;
         this.threadPoolManager = threadPoolManager;
         this.eventProcessor = eventProcessor;
+        this.processingDelayMs = Long.parseLong(Env.get("PROCESSING_DELAY_MS", "5000"));
+        this.cpuBurnMs = Long.parseLong(Env.get("CPU_BURN_MS", "0"));
     }
 
     public void start() throws Exception {
@@ -81,7 +86,7 @@ public class RabbitConsumer {
                     event.applicationId()
             );
 
-            Thread.sleep(5000);
+            simulateWorkload();
 
             eventProcessor.process(event);
 
@@ -96,6 +101,24 @@ public class RabbitConsumer {
             } catch (Exception nackException) {
                 logger.error("Error enviando NACK [tag={}]: {}", deliveryTag, nackException.getMessage(), nackException);
             }
+        }
+    }
+
+    private void simulateWorkload() throws InterruptedException {
+        if (cpuBurnMs > 0) {
+            long deadline = System.nanoTime() + (cpuBurnMs * 1_000_000L);
+            double value = 0.0;
+            while (System.nanoTime() < deadline) {
+                value += Math.sqrt(value + 1.0);
+            }
+            if (value < 0) {
+                logger.debug("Valor imposible para evitar optimizaciones: {}", value);
+            }
+            return;
+        }
+
+        if (processingDelayMs > 0) {
+            Thread.sleep(processingDelayMs);
         }
     }
 

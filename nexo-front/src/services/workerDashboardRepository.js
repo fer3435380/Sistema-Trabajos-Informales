@@ -1,4 +1,5 @@
 import { appStateStore } from './appStateStore'
+import { apiRequest, getAccessToken } from './apiClient'
 import { createSeedState } from '../data/seedAppState'
 
 function ensureStore() {
@@ -7,6 +8,140 @@ function ensureStore() {
 
 function cloneValue(value) {
   return JSON.parse(JSON.stringify(value))
+}
+
+function apiMicrojobId(jobId) {
+  return `api-job-${jobId}`
+}
+
+function parseApiJobId(microjobId) {
+  const match = String(microjobId).match(/^api-job-(\d+)$/)
+  return match ? Number(match[1]) : null
+}
+
+function formatPayment(payment) {
+  const amount = Number(payment)
+  return Number.isFinite(amount) ? `$${amount.toFixed(2)}` : `$${payment}`
+}
+
+function adaptApiJobForWorker(job) {
+  const modality = job.modality || 'Onsite'
+  const duration = job.duration || 'Por coordinar'
+  const requirements = Array.isArray(job.requirements) ? job.requirements : []
+  const availableDates = Array.isArray(job.available_dates) ? job.available_dates : []
+
+  return {
+    id: apiMicrojobId(job.id),
+    apiJobId: job.id,
+    title: job.title,
+    company: job.creator_name || 'Empresa',
+    companyLogo: null,
+    description: job.description,
+    microjobType: job.type,
+    locationType: modality.toLowerCase().includes('remot') ? 'remote' : 'onsite',
+    modality,
+    locationName: job.location,
+    address: job.location,
+    latitude: null,
+    longitude: null,
+    distanceKm: 2,
+    estimatedPay: formatPayment(job.payment),
+    estimatedPayAmount: Number(job.payment) || 0,
+    estimatedTime: duration,
+    requiredSkill: job.type,
+    requiredCourseId: null,
+    requiredCourseLabel: null,
+    isUnlocked: true,
+    unlockReason: 'Tu perfil cumple los requisitos para postular.',
+    scheduleWindow: availableDates[0] || 'Horario por coordinar',
+    availableDates,
+    capacity: job.capacity || 1,
+    supervisorName: job.creator_name || 'Responsable del microtrabajo',
+    status: job.status === 'open' ? 'Open' : 'Locked',
+    documents: [],
+    requirements,
+    imageSrc: null,
+    imageAlt: job.title,
+  }
+}
+
+function toFrontendApplicationStatus(status) {
+  if (status === 'accepted') return 'Aceptada'
+  if (status === 'rejected') return 'Rechazada'
+  return 'En revisión'
+}
+
+function adaptApiApplicationForWorker(application, apiJobs = []) {
+  const job = apiJobs.find((item) => item.id === application.job) || {}
+  return {
+    id: `api-application-${application.id}`,
+    apiApplicationId: application.id,
+    microjobId: apiMicrojobId(application.job),
+    workerId: 'worker-001',
+    title: application.job_title || job.title || 'Microtrabajo',
+    company: job.creator_name || 'Empresa',
+    companyLogo: null,
+    imageSrc: null,
+    imageAlt: application.job_title || 'Microtrabajo',
+    status: toFrontendApplicationStatus(application.status),
+    appliedAt: application.created_at?.slice(0, 10) || '2026-06-28',
+    estimatedPay: job.payment ? formatPayment(job.payment) : '$0',
+    estimatedPayAmount: Number(job.payment) || 0,
+    modality: 'Onsite',
+    locationName: job.location || 'Por coordinar',
+    address: job.location || 'Por coordinar',
+    latitude: null,
+    longitude: null,
+    description: job.description || application.cover_letter || '',
+    requirements: [],
+    result: application.status === 'accepted' ? 'Fuiste seleccionado(a) para este microtrabajo.' : 'Postulacion en seguimiento.',
+    estimatedTime: 'Por coordinar',
+    schedule: null,
+    courseRecommendation: null,
+  }
+}
+
+function adaptApiNotification(notification) {
+  return {
+    id: `api-notification-${notification.id}`,
+    title: notification.type || 'Notificacion',
+    description: notification.message,
+    timeLabel: notification.created_at?.slice(0, 10) || 'Reciente',
+    category: notification.type || 'Backend',
+    isUnread: !notification.is_read,
+  }
+}
+
+async function getApiWorkerCollections() {
+  const token = getAccessToken()
+  if (!token) return null
+
+  try {
+    const dashboard = await apiRequest('/worker/dashboard/', { token })
+    return {
+      microjobs: (dashboard.microjobs || []).map(adaptApiJobForWorker),
+      applications: (dashboard.applications || []).map((application) => adaptApiApplicationForWorker(application, dashboard.microjobs || [])),
+      notifications: (dashboard.notifications || []).map(adaptApiNotification),
+    }
+  } catch {
+    // Fall back to the non-aggregated endpoints while the backend is rolling forward.
+  }
+
+  try {
+    const [jobs, applicationsResponse, notificationsResponse] = await Promise.all([
+      apiRequest('/jobs/?status=open', { token }),
+      apiRequest('/applications/mine/', { token }),
+      apiRequest('/notifications/?limit=20', { token }),
+    ])
+
+    return {
+      microjobs: jobs.map(adaptApiJobForWorker),
+      applications: applicationsResponse.map((application) => adaptApiApplicationForWorker(application, jobs)),
+      notifications: (notificationsResponse.items || []).map(adaptApiNotification),
+    }
+  } catch {
+    return null
+  }
 }
 
 function normalizeText(value = '') {
@@ -241,6 +376,7 @@ export async function getWorkerDashboardState() {
   const state = appStateStore.getState()
   const workerId = getActiveWorkerId()
   const baseProfile = getWorkerProfileById(workerId) || state.workerProfiles[0]
+  const apiCollections = await getApiWorkerCollections()
   const workerProfile = {
     ...cloneValue(baseProfile),
     name: baseProfile.firstName || baseProfile.name?.split(' ')[0] || baseProfile.name,
@@ -249,13 +385,13 @@ export async function getWorkerDashboardState() {
 
   return {
     workerProfile,
-    applications: getWorkerApplications(state, workerId),
-    microjobs: getWorkerMicrojobs(state, workerId),
+    applications: apiCollections?.applications?.length ? apiCollections.applications : getWorkerApplications(state, workerId),
+    microjobs: apiCollections?.microjobs?.length ? apiCollections.microjobs : getWorkerMicrojobs(state, workerId),
     courseCatalog: getWorkerCourseCatalog(state, workerId),
     coursesInProgress: getWorkerCoursesInProgress(state, workerId),
     profileStatus: cloneValue(baseProfile.profileStatus),
     settings: cloneValue(state.workerSettings),
-    notifications: cloneValue(state.workerNotifications),
+    notifications: apiCollections?.notifications?.length ? apiCollections.notifications : cloneValue(state.workerNotifications),
   }
 }
 
@@ -348,6 +484,29 @@ export async function getWorkerDashboardSummary({ applications = [], microjobs =
 }
 
 export async function applyToMicrojob(microjobId) {
+  const apiJobId = parseApiJobId(microjobId)
+  const token = getAccessToken()
+  if (apiJobId && token) {
+    try {
+      await apiRequest('/applications/', {
+        method: 'POST',
+        token,
+        body: {
+          job: apiJobId,
+          cover_letter: 'Estoy disponible para realizar este microtrabajo.',
+        },
+      })
+      const apiCollections = await getApiWorkerCollections()
+      return {
+        applications: apiCollections?.applications || [],
+        createdApplication: null,
+        successMessage: 'Postulacion enviada',
+      }
+    } catch (error) {
+      return { applications: [], createdApplication: null, successMessage: error.message || 'No se pudo enviar la postulacion.' }
+    }
+  }
+
   ensureStore()
   const workerId = getActiveWorkerId()
   const state = appStateStore.getState()

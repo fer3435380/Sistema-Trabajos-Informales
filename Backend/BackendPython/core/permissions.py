@@ -1,3 +1,5 @@
+import secrets
+
 from rest_framework.permissions import BasePermission
 
 
@@ -10,7 +12,8 @@ class HasInternalApiKey(BasePermission):
     def has_permission(self, request, view):
         from django.conf import settings
 
-        return request.headers.get("X-Internal-Api-Key") == settings.INTERNAL_API_KEY
+        provided_key = request.headers.get("X-Internal-Api-Key", "")
+        return secrets.compare_digest(provided_key, settings.INTERNAL_API_KEY)
 
 
 def has_internal_api_key(request):

@@ -1,4 +1,5 @@
 import { appStateStore } from './appStateStore'
+import { apiRequest, getAccessToken } from './apiClient'
 import { createSeedState } from '../data/seedAppState'
 import { mockMapPoints, workModeLabels } from '../data/mockCompanyData'
 
@@ -8,6 +9,152 @@ function ensureStore() {
 
 function cloneValue(value) {
   return JSON.parse(JSON.stringify(value))
+}
+
+function apiMicrojobId(jobId) {
+  return `api-job-${jobId}`
+}
+
+function parseApiJobId(microjobId) {
+  const match = String(microjobId).match(/^api-job-(\d+)$/)
+  return match ? Number(match[1]) : null
+}
+
+function parseApiApplicationId(applicationId) {
+  const match = String(applicationId).match(/^api-application-(\d+)$/)
+  return match ? Number(match[1]) : null
+}
+
+function formatPayment(payment) {
+  const amount = Number(payment)
+  return Number.isFinite(amount) ? `$${amount.toFixed(2)}` : `$${payment}`
+}
+
+function toFrontendApplicationStatus(status) {
+  if (status === 'accepted') return 'Aceptada'
+  if (status === 'rejected') return 'Rechazada'
+  return 'En revisión'
+}
+
+function toBackendApplicationAction(status) {
+  return status === 'Aceptada' ? 'accept' : 'reject'
+}
+
+function buildApiJobPayload(payload) {
+  const location = payload.locationName || payload.address || payload.referenceName || 'Por coordinar'
+  return {
+    title: payload.title,
+    description: payload.shortDescription || payload.description || payload.title,
+    type: payload.microjobType || payload.requiredSkill || 'General',
+    location,
+    payment: Number(String(payload.estimatedPay).replace(/[^\d.]/g, '')) || 0,
+    modality: payload.modality || '',
+    duration: payload.estimatedDuration || '',
+    requirements: [payload.requiredSkill, ...(payload.requirements || [])].filter(Boolean),
+    capacity: Number(payload.capacity) || 1,
+    available_dates: payload.availableDates || payload.scheduleWindows || [],
+  }
+}
+
+function toLocationTypeFromText(location = '') {
+  return normalizeText(location).includes('remoto') ? 'remote' : 'onsite'
+}
+
+function adaptApiJobForCompany(job) {
+  const locationType = job.modality?.toLowerCase().includes('remot') ? 'remote' : toLocationTypeFromText(job.location)
+  const availableDates = Array.isArray(job.available_dates) ? job.available_dates : []
+  return {
+    id: apiMicrojobId(job.id),
+    apiJobId: job.id,
+    companyId: 'company-001',
+    company: job.creator_name || 'Mi empresa',
+    title: job.title,
+    shortDescription: job.description,
+    description: job.description,
+    microjobType: job.type,
+    modality: job.modality || (locationType === 'remote' ? 'Remota' : 'Presencial'),
+    originMode: 'both',
+    locationName: job.location,
+    address: job.location,
+    latitude: null,
+    longitude: null,
+    estimatedPay: formatPayment(job.payment),
+    estimatedPayAmount: Number(job.payment) || 0,
+    estimatedDuration: job.duration || 'Por coordinar',
+    requiredSkill: job.type,
+    requiredCourseId: null,
+    scheduleWindows: availableDates,
+    availableDates,
+    capacity: job.capacity || 1,
+    supervisorName: job.creator_name || 'Responsable del microtrabajo',
+    documents: [],
+    requirements: Array.isArray(job.requirements) ? job.requirements : [],
+    status: job.status === 'open' ? 'Activo' : 'Cerrado',
+    applicantsAssociated: [],
+    imageSrc: null,
+    imageAlt: job.title,
+    referenceName: job.location,
+    locationType,
+    distanceKm: locationType === 'remote' ? null : 2,
+  }
+}
+
+function adaptApiApplicant(application, apiJobs = []) {
+  const job = apiJobs.find((item) => item.id === application.job) || {}
+  return {
+    id: `api-application-${application.id}`,
+    apiApplicationId: application.id,
+    applicationId: `api-application-${application.id}`,
+    workerId: `api-worker-${application.applicant}`,
+    microjobId: apiMicrojobId(application.job),
+    microjobTitle: application.job_title || job.title || 'Microtrabajo',
+    status: toFrontendApplicationStatus(application.status),
+    name: application.applicant_name || 'Postulante',
+    initials: (application.applicant_name || 'PN')
+      .split(' ')
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join(''),
+    imageSrc: null,
+    profileCompleted: '70%',
+    relatedCourses: [],
+    completedCourses: [],
+    mainData: [job.location || 'Por coordinar'],
+    education: 'Informacion pendiente de completar.',
+    experience: application.cover_letter || 'Postulacion recibida desde el backend.',
+    availability: 'Por confirmar',
+    distanceKm: 0,
+    shortHistory: 'Postulante sincronizado desde el backend.',
+  }
+}
+
+async function getApiCompanyCollections() {
+  const token = getAccessToken()
+  if (!token) return null
+
+  try {
+    const dashboard = await apiRequest('/company/dashboard/', { token })
+    return {
+      microjobs: (dashboard.microjobs || []).map(adaptApiJobForCompany),
+      applicants: (dashboard.applications || []).map((application) => adaptApiApplicant(application, dashboard.microjobs || [])),
+    }
+  } catch {
+    // Fall back to the non-aggregated endpoints while the backend is rolling forward.
+  }
+
+  try {
+    const [jobs, applications] = await Promise.all([
+      apiRequest('/jobs/?mine=true', { token }),
+      apiRequest('/applications/received/', { token }),
+    ])
+
+    return {
+      microjobs: jobs.map(adaptApiJobForCompany),
+      applicants: applications.map((application) => adaptApiApplicant(application, jobs)),
+    }
+  } catch {
+    return null
+  }
 }
 
 function normalizeText(value = '') {
@@ -243,17 +390,18 @@ export async function getCompanyDashboardState() {
   const state = appStateStore.getState()
   const companyId = getActiveCompanyId()
   const baseProfile = getCompanyProfileById(companyId) || state.companyProfiles[0]
+  const apiCollections = await getApiCompanyCollections()
   const profile = withDerivedProfileMeta(cloneValue(baseProfile))
   const courses = cloneValue(state.courses.filter((course) => course.companyId === companyId))
-  const microjobs = cloneValue(state.microjobs.filter((microjob) => microjob.companyId === companyId)).map((microjob) =>
+  const localMicrojobs = cloneValue(state.microjobs.filter((microjob) => microjob.companyId === companyId)).map((microjob) =>
     withMicrojobDescription(microjob, courses)
   )
 
   return {
     profile,
     notifications: cloneValue(state.companyNotifications),
-    microjobs,
-    applicants: buildApplicantsForCompany(state, companyId),
+    microjobs: apiCollections?.microjobs?.length ? apiCollections.microjobs : localMicrojobs,
+    applicants: apiCollections?.applicants?.length ? apiCollections.applicants : buildApplicantsForCompany(state, companyId),
     courses,
     settings: cloneValue(state.companySettings),
     statusBlocks: getProfileStatusBlocks(profile),
@@ -330,6 +478,25 @@ function persistCompanyCourses() {
 }
 
 export async function createMicrojob(payload) {
+  const token = getAccessToken()
+  if (token && payload.status !== 'Borrador') {
+    try {
+      await apiRequest('/jobs/', {
+        method: 'POST',
+        token,
+        body: buildApiJobPayload(payload),
+      })
+      const apiCollections = await getApiCompanyCollections()
+      return {
+        microjobs: apiCollections?.microjobs || [],
+        createdMicrojob: null,
+        successMessage: payload.status === 'Borrador' ? 'Borrador guardado localmente' : 'Microtrabajo publicado',
+      }
+    } catch {
+      // Continue with the local store if the backend is not available.
+    }
+  }
+
   ensureStore()
   const companyId = getActiveCompanyId()
   const profile = getCompanyProfileById(companyId)
@@ -382,6 +549,23 @@ export async function createMicrojob(payload) {
 }
 
 export async function updateMicrojob(microjobId, payload) {
+  const token = getAccessToken()
+  const apiJobId = parseApiJobId(microjobId)
+  if (token && apiJobId) {
+    try {
+      await apiRequest(`/jobs/${apiJobId}/`, {
+        method: 'PATCH',
+        token,
+        body: buildApiJobPayload(payload),
+      })
+      const apiCollections = await getApiCompanyCollections()
+      const updatedMicrojob = apiCollections?.microjobs?.find((microjob) => microjob.id === microjobId) ?? null
+      return { microjobs: apiCollections?.microjobs || [], updatedMicrojob }
+    } catch {
+      // Continue with the local store if the backend is not available.
+    }
+  }
+
   ensureStore()
   const normalizedShortDescription = limitWords(payload.shortDescription, 150)
 
@@ -409,6 +593,21 @@ export async function updateMicrojob(microjobId, payload) {
 }
 
 export async function deleteMicrojob(microjobId) {
+  const token = getAccessToken()
+  const apiJobId = parseApiJobId(microjobId)
+  if (token && apiJobId) {
+    try {
+      await apiRequest(`/jobs/${apiJobId}/`, {
+        method: 'DELETE',
+        token,
+      })
+      const apiCollections = await getApiCompanyCollections()
+      return { microjobs: apiCollections?.microjobs || [], successMessage: 'Microtrabajo eliminado' }
+    } catch {
+      // Continue with the local store if the backend is not available.
+    }
+  }
+
   ensureStore()
   appStateStore.patchState((state) => {
     state.microjobs = state.microjobs.filter((microjob) => microjob.id !== microjobId)
@@ -574,6 +773,24 @@ export async function getApplicantDetail(applicantId, sourceApplicants = [], sou
 }
 
 export async function updateApplicantStatus(applicationId, status) {
+  const apiApplicationId = parseApiApplicationId(applicationId)
+  const token = getAccessToken()
+  if (apiApplicationId && token) {
+    try {
+      await apiRequest(`/applications/${apiApplicationId}/${toBackendApplicationAction(status)}/`, {
+        method: 'PATCH',
+        token,
+      })
+      const apiCollections = await getApiCompanyCollections()
+      return {
+        applicants: apiCollections?.applicants || [],
+        successMessage: status === 'Aceptada' ? 'Postulante aceptado' : 'Postulante rechazado',
+      }
+    } catch (error) {
+      return { applicants: [], successMessage: error.message || 'No se pudo actualizar el postulante.' }
+    }
+  }
+
   ensureStore()
   const acceptedSchedule = {
     assignedDate: 'Por coordinar con la empresa',

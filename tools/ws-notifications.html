@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Prueba WebSocket Notificaciones</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 900px; }
+      input, button { font: inherit; padding: .6rem; }
+      input { width: min(720px, 100%); }
+      pre { background: #111827; color: #f9fafb; padding: 1rem; min-height: 260px; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <h1>WebSocket de notificaciones</h1>
+    <p>Pega el JWT del usuario y conecta a <code>ws://localhost:8080/ws/notifications/</code>.</p>
+    <input id="token" placeholder="Bearer token sin la palabra Bearer" />
+    <button id="connect">Conectar</button>
+    <pre id="log"></pre>
+    <script>
+      const log = document.querySelector("#log");
+      document.querySelector("#connect").addEventListener("click", () => {
+        const token = document.querySelector("#token").value.trim();
+        const ws = new WebSocket("ws://localhost:8080/ws/notifications/", ["bearer", token]);
+        ws.onopen = () => log.textContent += "Conectado\n";
+        ws.onmessage = (event) => log.textContent += `${event.data}\n`;
+        ws.onclose = (event) => log.textContent += `Cerrado: ${event.code}\n`;
+        ws.onerror = () => log.textContent += "Error de WebSocket\n";
+      });
+    </script>
+  </body>
+</html>

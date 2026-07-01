@@ -42,6 +42,7 @@ import {
   updateApplicantStatus,
   updateMicrojob,
 } from '../../services/companyDashboardRepository'
+import { connectNotificationSocket, upsertNotification } from '../../services/notificationSocket'
 
 const sectionIds = {
   panel: 'panel',
@@ -253,6 +254,21 @@ function CompanyDashboard() {
 
     return () => window.clearTimeout(timeoutId)
   }, [toastMessage])
+
+  useEffect(() => {
+    if (!isReady) {
+      return undefined
+    }
+
+    const notificationSocket = connectNotificationSocket({
+      onNotification: (notification) => {
+        setNotifications((currentNotifications) => upsertNotification(currentNotifications, notification))
+        setToastMessage(notification.description)
+      },
+    })
+
+    return () => notificationSocket.close()
+  }, [isReady])
 
   function handleSectionChange(sectionId) {
     setActiveSection(sectionId)

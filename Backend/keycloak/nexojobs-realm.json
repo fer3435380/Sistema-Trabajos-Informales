@@ -1,0 +1,82 @@
+{
+  "realm": "nexojobs",
+  "enabled": true,
+  "displayName": "NexoJobs",
+  "roles": {
+    "realm": [
+      { "name": "worker", "description": "Trabajador" },
+      { "name": "owner", "description": "Empresa / duenio" },
+      { "name": "admin", "description": "Administrador" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "nexojobs-front",
+      "name": "NexoJobs Frontend",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/auth/callback",
+        "http://127.0.0.1:5173/auth/callback",
+        "http://localhost:3000/auth/callback",
+        "http://127.0.0.1:3000/auth/callback",
+        "https://*.trycloudflare.com/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://*.trycloudflare.com"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocol": "openid-connect",
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email"],
+      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
+    }
+  ],
+  "users": [
+    {
+      "username": "maria.piedra@nexojobs.ec",
+      "email": "maria.piedra@nexojobs.ec",
+      "firstName": "Maria",
+      "lastName": "Piedra",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "maria123", "temporary": false }
+      ],
+      "realmRoles": ["worker"]
+    },
+    {
+      "username": "operaciones@eventosaustro.ec",
+      "email": "operaciones@eventosaustro.ec",
+      "firstName": "Eventos",
+      "lastName": "Austro",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "empresa123", "temporary": false }
+      ],
+      "realmRoles": ["owner"]
+    },
+    {
+      "username": "admin@nexojobs.ec",
+      "email": "admin@nexojobs.ec",
+      "firstName": "Admin",
+      "lastName": "NexoJobs",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "Admin123!", "temporary": false }
+      ],
+      "realmRoles": ["admin"]
+    }
+  ]
+}

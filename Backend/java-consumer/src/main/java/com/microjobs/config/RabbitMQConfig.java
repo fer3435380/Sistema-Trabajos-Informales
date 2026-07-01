@@ -3,7 +3,6 @@ package com.microjobs.config;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import io.github.cdimascio.dotenv.Dotenv;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,17 +20,13 @@ public class RabbitMQConfig {
     private Connection connection;
 
     public RabbitMQConfig() {
-        Dotenv dotenv = Dotenv.configure()
-                .ignoreIfMissing()
-                .load();
-
-        this.host = dotenv.get("RABBITMQ_HOST", "localhost");
-        this.port = Integer.parseInt(dotenv.get("RABBITMQ_PORT", "5672"));
-        this.username = dotenv.get("RABBITMQ_USER", "guest");
-        this.password = dotenv.get("RABBITMQ_PASSWORD", "guest");
-        this.queueName = dotenv.get("RABBITMQ_QUEUE", "job_events");
+        this.host = Env.get("RABBITMQ_HOST", "localhost");
+        this.port = Integer.parseInt(Env.get("RABBITMQ_PORT", "5672"));
+        this.username = Env.get("RABBITMQ_USER", "guest");
+        this.password = Env.get("RABBITMQ_PASSWORD", "guest");
+        this.queueName = Env.get("RABBITMQ_QUEUE", "job_events");
         this.prefetchCount = Integer.parseInt(
-                dotenv.get("RABBITMQ_PREFETCH_COUNT", dotenv.get("THREAD_POOL_SIZE", "10"))
+                Env.get("RABBITMQ_PREFETCH_COUNT", Env.get("THREAD_POOL_SIZE", "10"))
         );
 
         logger.info(

@@ -12,3 +12,4 @@ env/
 .env.docker
 target/
 **/target/**
+.vscode

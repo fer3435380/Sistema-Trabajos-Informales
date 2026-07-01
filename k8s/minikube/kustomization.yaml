@@ -1,0 +1,22 @@
+resources:
+  - ../namespace.yaml
+  - ../configmap.yaml
+  - ../postgres.yaml
+  - ../rabbitmq.yaml
+  - ../redis.yaml
+  - ../keycloak.yaml
+  - ../frontend.yaml
+  - ../api-gateway.yaml
+  - ../courses-service.yaml
+  - ../backend-python.yaml
+  - ../notifier.yaml
+  - ../outbox-worker.yaml
+  - ../java-consumer.yaml
+  - ../ingress.yaml
+
+patches:
+  - path: configmap-patch.yaml
+  - path: api-gateway-patch.yaml
+  - path: backend-python-patch.yaml
+  - path: notifier-patch.yaml
+  - path: rabbitmq-patch.yaml

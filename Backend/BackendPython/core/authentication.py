@@ -21,8 +21,11 @@ class JWTAuthentication(authentication.BaseAuthentication):
         if RevokedToken.objects.filter(jti=payload["jti"]).exists():
             raise exceptions.AuthenticationFailed("Token revocado")
 
+        subject = str(payload["sub"])
+        lookup = {"id": subject} if subject.isdigit() else {"email__iexact": subject}
+
         try:
-            user = User.objects.get(id=payload["sub"], is_active=True)
+            user = User.objects.get(**lookup, is_active=True)
         except User.DoesNotExist as exc:
             raise exceptions.AuthenticationFailed("Usuario no encontrado") from exc
 

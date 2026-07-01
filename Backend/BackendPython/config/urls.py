@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
 
+from core.dashboard_views import CompanyDashboardView, WorkerDashboardView
+
 
 def health(_request):
     return JsonResponse({"status": "ok", "service": "backend-python"})
@@ -14,5 +16,7 @@ urlpatterns = [
     path("api/v1/jobs/", include("jobs.urls")),
     path("api/v1/applications/", include("applications.urls")),
     path("api/v1/notifications/", include("notifications.urls")),
+    path("api/v1/worker/dashboard/", WorkerDashboardView.as_view()),
+    path("api/v1/company/dashboard/", CompanyDashboardView.as_view()),
     path("api/v1/health/", health),
 ]

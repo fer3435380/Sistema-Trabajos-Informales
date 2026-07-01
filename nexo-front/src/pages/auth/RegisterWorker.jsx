@@ -5,6 +5,7 @@ import AuthSeparator from '../../components/auth/AuthSeparator'
 import FormField from '../../components/auth/FormField'
 import RegisterShell from '../../components/auth/RegisterShell'
 import SelectableChip from '../../components/auth/SelectableChip'
+import { appStateStore } from '../../services/appStateStore'
 import { login, registerWorker } from '../../services/authRepository'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -288,7 +289,7 @@ function RegisterWorker() {
     setFormMessage('')
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
 
     for (let stepIndex = 0; stepIndex < workerSteps.length; stepIndex += 1) {
@@ -339,7 +340,7 @@ function RegisterWorker() {
       isMockRegistration: true,
     }
 
-    const result = registerWorker(registrationPayload)
+    const result = await registerWorker(registrationPayload)
 
     if (!result.success) {
       setCurrentStep(0)
@@ -348,13 +349,13 @@ function RegisterWorker() {
     }
 
     // Persist the raw registration payload too (useful for debugging / legacy reads).
-    window.localStorage.setItem(
+    appStateStore.setOfflineRecord(
       'nexojobs_mock_worker_registration',
-      JSON.stringify(registrationPayload)
+      registrationPayload
     )
 
     setFormMessage('')
-    login(registrationPayload.personalData.email, registrationPayload.password, { allowGoogleMock: isGoogleMock })
+    await login(registrationPayload.personalData.email, registrationPayload.password, { allowGoogleMock: isGoogleMock })
     navigate('/app/worker')
   }
 

@@ -8,5 +8,22 @@ class JobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-        fields = ("id", "title", "description", "type", "location", "payment", "creator", "creator_name", "status", "created_at", "updated_at")
+        fields = (
+            "id",
+            "title",
+            "description",
+            "type",
+            "location",
+            "payment",
+            "modality",
+            "duration",
+            "requirements",
+            "capacity",
+            "available_dates",
+            "creator",
+            "creator_name",
+            "status",
+            "created_at",
+            "updated_at",
+        )
         read_only_fields = ("creator", "creator_name", "status", "created_at", "updated_at")

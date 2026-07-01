@@ -33,6 +33,7 @@ import {
   getWorkerDashboardSummary,
   startCourse,
 } from '../../services/workerDashboardRepository'
+import { connectNotificationSocket, upsertNotification } from '../../services/notificationSocket'
 
 const sectionIds = {
   panel: 'panel',
@@ -606,6 +607,21 @@ function WorkerDashboard() {
     return () => window.clearTimeout(timeoutId)
   }, [toastMessage])
 
+  useEffect(() => {
+    if (!isReady) {
+      return undefined
+    }
+
+    const notificationSocket = connectNotificationSocket({
+      onNotification: (notification) => {
+        setNotifications((currentNotifications) => upsertNotification(currentNotifications, notification))
+        setToastMessage(notification.description)
+      },
+    })
+
+    return () => notificationSocket.close()
+  }, [isReady])
+
   async function openApplicationDetail(applicationId) {
     const detail = await getApplicationDetail(applicationId, applications)
     setSelectedApplication(detail ? enrichApplication(detail) : null)
@@ -861,7 +877,7 @@ function WorkerDashboard() {
           <WorkerHeader
             workerName={workerProfile.name}
             workerProfile={workerProfile}
-            unreadNotifications={workerProfile.unreadNotifications}
+            unreadNotifications={notifications.filter((notification) => notification.isUnread).length}
             notifications={notifications}
             isNotificationPanelOpen={isNotificationPanelOpen}
             isAccountMenuOpen={isAccountMenuOpen}

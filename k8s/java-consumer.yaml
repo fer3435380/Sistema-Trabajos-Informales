@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: java-consumer
+  namespace: trabajos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: java-consumer
+  template:
+    metadata:
+      labels:
+        app: java-consumer
+    spec:
+      containers:
+        - name: java-consumer
+          image: trabajos-java-consumer:local
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: trabajos-config
+            - secretRef:
+                name: trabajos-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 700m
+              memory: 512Mi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: java-consumer-hpa
+  namespace: trabajos
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: java-consumer
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60

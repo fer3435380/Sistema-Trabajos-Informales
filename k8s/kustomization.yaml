@@ -1,0 +1,15 @@
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - postgres.yaml
+  - rabbitmq.yaml
+  - redis.yaml
+  - keycloak.yaml
+  - frontend.yaml
+  - api-gateway.yaml
+  - courses-service.yaml
+  - backend-python.yaml
+  - notifier.yaml
+  - outbox-worker.yaml
+  - java-consumer.yaml
+  - ingress.yaml

@@ -1,7 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import { getSession } from '../services/authRepository'
 
-// Frontend-only guard. Real token validation belongs to the SSO/backend phase.
 function ProtectedRoute({ role, children }) {
   const session = getSession()
 

@@ -1,9 +1,9 @@
 package com.microjobs.services;
 
+import com.microjobs.config.Env;
 import com.microjobs.models.ApplicationDetails;
 import com.microjobs.models.Notification;
 import com.microjobs.utils.JsonUtil;
-import io.github.cdimascio.dotenv.Dotenv;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -22,12 +22,8 @@ public class PythonApiService {
     private final String apiKey;
 
     public PythonApiService() {
-        Dotenv dotenv = Dotenv.configure()
-                .ignoreIfMissing()
-                .load();
-
-        this.apiBaseUrl = resolveApiBaseUrl(dotenv);
-        this.apiKey = dotenv.get("INTERNAL_API_KEY", "dev-internal-key");
+        this.apiBaseUrl = resolveApiBaseUrl();
+        this.apiKey = Env.get("INTERNAL_API_KEY", "dev-internal-key");
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
@@ -121,10 +117,10 @@ public class PythonApiService {
         return apiBaseUrl + path;
     }
 
-    private String resolveApiBaseUrl(Dotenv dotenv) {
-        String configuredUrl = dotenv.get("PYTHON_API_BASE_URL");
+    private String resolveApiBaseUrl() {
+        String configuredUrl = Env.get("PYTHON_API_BASE_URL", "");
         if (configuredUrl == null || configuredUrl.isBlank()) {
-            configuredUrl = dotenv.get("PYTHON_API_URL", "http://localhost:8000");
+            configuredUrl = Env.get("PYTHON_API_URL", "http://localhost:8000");
         }
 
         String normalizedUrl = configuredUrl.replaceAll("/+$", "");

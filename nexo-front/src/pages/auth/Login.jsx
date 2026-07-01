@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import brandIcon from '../../assets/landing/nexotrabajo_icono.png'
 import AuthProviderButton from '../../components/auth/AuthProviderButton'
 import AuthSeparator from '../../components/auth/AuthSeparator'
-import { login } from '../../services/authRepository'
+import { beginOAuthLogin, login } from '../../services/authRepository'
 import { DEMO_CREDENTIALS } from '../../data/seedAppState'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -21,7 +21,7 @@ function Login() {
     navigate(role === 'company' ? '/app/company' : '/app/worker')
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     setGoogleMessage('')
 
@@ -35,25 +35,21 @@ function Login() {
       return
     }
 
-    const result = login(email, password)
-
-    if (!result.success) {
-      setAuthMessage(result.message)
-      return
-    }
-
     setAuthMessage('')
-    redirectByRole(result.role)
+    await beginOAuthLogin({
+      loginHint: email,
+      returnTo: email.trim().toLowerCase().includes('operaciones') ? '/app/company' : '/app/worker',
+    })
   }
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     // Real SSO belongs to a later phase; we only resolve mock Google accounts here.
     if (!email.trim()) {
       setGoogleMessage('Escribe el correo de tu cuenta Google mock para continuar.')
       return
     }
 
-    const result = login(email, password, { allowGoogleMock: true })
+    const result = await login(email, password, { allowGoogleMock: true })
 
     if (!result.success) {
       setGoogleMessage('El acceso con Google real se conectará en la fase de SSO. Usa una cuenta registrada para continuar.')

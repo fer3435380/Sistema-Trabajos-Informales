@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 
 from core.permissions import HasInternalApiKey
 from notifications.models import Notification
+from notifications.realtime import broadcast_notification
 from notifications.serializers import NotificationCreateSerializer, NotificationSerializer
 
 
@@ -57,6 +58,8 @@ class NotificationListCreateView(APIView):
             notification = Notification.objects.create(**validated_data)
             created = True
 
+        broadcast_notification(notification, "notification.created" if created else "notification.updated")
+
         return Response(
             NotificationSerializer(notification).data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
@@ -72,4 +75,5 @@ class MarkNotificationReadView(APIView):
             notification.is_read = True
             notification.read_at = timezone.now()
             notification.save(update_fields=["is_read", "read_at"])
+            broadcast_notification(notification, "notification.read")
         return Response(NotificationSerializer(notification).data)

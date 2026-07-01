@@ -1,5 +1,6 @@
 package com.microjobs.threads;
 
+import com.microjobs.config.Env;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -8,8 +9,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.github.cdimascio.dotenv.Dotenv;
 
 public class ThreadPoolManager {
 
@@ -20,11 +19,7 @@ public class ThreadPoolManager {
     private final Semaphore semaphore;
 
     public ThreadPoolManager() {
-        Dotenv dotenv = Dotenv.configure()
-                .ignoreIfMissing()
-                .load();
-
-        int poolSize = Integer.parseInt(dotenv.get("THREAD_POOL_SIZE", "10"));
+        int poolSize = Integer.parseInt(Env.get("THREAD_POOL_SIZE", "10"));
 
         this.executorService = Executors.newVirtualThreadPerTaskExecutor();
         this.semaphore = new Semaphore(poolSize);

@@ -39,6 +39,20 @@ def seed_demo_data():
     worker.set_password("Worker123!")
     worker.save()
 
+    frontend_owner, _ = User.objects.update_or_create(
+        email="operaciones@eventosaustro.ec",
+        defaults={"name": "Eventos Austro", "role": User.Role.OWNER, "is_active": True},
+    )
+    frontend_owner.set_password("empresa123")
+    frontend_owner.save()
+
+    frontend_worker, _ = User.objects.update_or_create(
+        email="maria.piedra@nexojobs.ec",
+        defaults={"name": "Maria Piedra", "role": User.Role.WORKER, "is_active": True},
+    )
+    frontend_worker.set_password("maria123")
+    frontend_worker.save()
+
     for data in [
         {
             "title": "Ayuda para mudanza",
@@ -63,3 +77,21 @@ def seed_demo_data():
         },
     ]:
         upsert_demo_job(owner, data)
+
+    for data in [
+        {
+            "title": "Validacion de datos de catalogo",
+            "description": "Revisar registros digitales y marcar inconsistencias segun una guia corta.",
+            "type": "datos",
+            "location": "Remoto",
+            "payment": Decimal("18.00"),
+        },
+        {
+            "title": "Apoyo en tienda local",
+            "description": "Apoyar reposicion y atencion basica durante una jornada corta.",
+            "type": "operativo",
+            "location": "Cuenca, El Vergel",
+            "payment": Decimal("15.00"),
+        },
+    ]:
+        upsert_demo_job(frontend_owner, data)

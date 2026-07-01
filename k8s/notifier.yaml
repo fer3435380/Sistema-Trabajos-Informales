@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifier
+  namespace: trabajos
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notifier
+  template:
+    metadata:
+      labels:
+        app: notifier
+    spec:
+      containers:
+        - name: notifier
+          image: trabajos-backend-python:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: trabajos-config
+            - secretRef:
+                name: trabajos-secret
+          command: ["sh", "-c"]
+          args:
+            - export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" &&
+              export RABBITMQ_URL="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/" &&
+              daphne -b 0.0.0.0 -p 8001 config.asgi:application
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notifier
+  namespace: trabajos
+spec:
+  type: LoadBalancer
+  selector:
+    app: notifier
+  ports:
+    - port: 8001
+      targetPort: 8001

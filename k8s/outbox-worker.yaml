@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: outbox-worker
+  namespace: trabajos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: outbox-worker
+  template:
+    metadata:
+      labels:
+        app: outbox-worker
+    spec:
+      containers:
+        - name: outbox-worker
+          image: trabajos-backend-python:local
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: trabajos-config
+            - secretRef:
+                name: trabajos-secret
+          command: ["sh", "-c"]
+          args:
+            - export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" &&
+              export RABBITMQ_URL="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/" &&
+              python manage.py run_outbox_dispatcher
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

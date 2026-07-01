@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-python
+  namespace: trabajos
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-python
+  template:
+    metadata:
+      labels:
+        app: backend-python
+    spec:
+      containers:
+        - name: backend-python
+          image: trabajos-backend-python:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: trabajos-config
+            - secretRef:
+                name: trabajos-secret
+          command: ["sh", "-c"]
+          args:
+            - export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" &&
+              export RABBITMQ_URL="amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/" &&
+              python manage.py migrate &&
+              python manage.py seed_demo &&
+              daphne -b 0.0.0.0 -p 8000 config.asgi:application
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health/
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-python
+  namespace: trabajos
+spec:
+  type: LoadBalancer
+  selector:
+    app: backend-python
+  ports:
+    - port: 8000
+      targetPort: 8000

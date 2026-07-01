@@ -4,6 +4,7 @@ import Login from '../pages/auth/Login'
 import RegisterSelect from '../pages/auth/RegisterSelect'
 import RegisterWorker from '../pages/auth/RegisterWorker'
 import RegisterCompany from '../pages/auth/RegisterCompany'
+import AuthCallback from '../pages/auth/AuthCallback'
 import WorkerDashboard from '../pages/worker/WorkerDashboard'
 import CompanyDashboard from '../pages/company/CompanyDashboard'
 import ProtectedRoute from './ProtectedRoute'
@@ -16,6 +17,7 @@ function AppRouter() {
       <Route path="/register" element={<RegisterSelect />} />
       <Route path="/register/worker" element={<RegisterWorker />} />
       <Route path="/register/company" element={<RegisterCompany />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route
         path="/app/worker"
         element={
